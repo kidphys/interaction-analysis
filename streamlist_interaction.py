@@ -49,60 +49,57 @@ chosen_answers = df['Chosen Short Answer'].dropna().unique()
 # st.session_state.selected_short_answer = selected_short_answer
 
 
-selected_poll_answers = st.selectbox('Filter participant who:', poll_answers)
-
-st.session_state.selected_poll_answers = selected_poll_answers
-
-audience_id_field = 'Audience Name'
-audience_ids = df[audience_id_field].unique()
-if st.session_state.selected_poll_answers != 'All':
-    audience_df = df[df['Chosen Poll'] == st.session_state.selected_poll_answers]
-    audience_ids = audience_df[audience_id_field].unique()
-
-if st.session_state.selected_short_answer != 'All':
-    audience_df = df[df['Chosen Short Answer'] == st.session_state.selected_short_answer]
-    audience_ids = audience_df[audience_id_field].unique()
-
-filtered_df = df[df[audience_id_field].isin(audience_ids)].copy()
-
-full = df.groupby(['Slideid', 'Slideorder', 'Slidetitle', 'Slidetypenormalized'])['Createdat'].size().reset_index().sort_values(by='Slideorder')
-data = filtered_df.groupby(['Slideid', 'Slideorder', 'Slidetitle', 'Slidetypenormalized', 'Presentationid'])['Createdat'].size().reset_index().sort_values(by='Slideorder')
-data.rename(columns={'Createdat': 'Interaction Count'}, inplace=True)
+poll_slide_titles = df[df['Slidetypenormalized'] == 'Poll']['Slidetitle'].unique()
+selected_poll_slide = st.selectbox('Break down by poll answer for question:', ['All'] + list(poll_slide_titles))
+st.session_state.selected_poll_slide = selected_poll_slide
 
 
-slide_type_options = full['Slidetypenormalized'].unique()
-slide_type_options = ['All'] + list(slide_type_options)
-selected_slide_type = st.selectbox('Filter by slide type', slide_type_options)
-# Save the selected value in session state
-st.session_state.selected_slide_type = selected_slide_type
+def create_category_bar_chart(data, presentation_id):
+    return alt.Chart(data[data['Presentationid'] == presentation_id]).mark_bar().encode(
+        x=alt.X('Slidetitle:N', title='Slide Title',
+                axis=alt.Axis(labelAngle=-45), sort=['Slideorder']  # Rotate x-axis labels to make them easier to read
+        ),
+        y='Interaction Count:Q',  # count of interactions as the y-axis
+        xOffset='Category:N',
+        color='Category:N',
+        tooltip=['Category:N', 'Interaction Count:Q', 'Slidetitle:N']  # Show full slide title, interaction count, and slide order on hover
+    ).properties(
+        title=df[df['Presentationid'] == presentation_id]['Presentation Name'].iloc[0]
+    )
 
-# Filter the dataframe based on the selected slide type
-if st.session_state.selected_slide_type != 'All':
-    data = data[data['Slidetypenormalized'] == st.session_state.selected_slide_type]
+def create_all_interaction_bar_chart(data, presentation_id):
+    return alt.Chart(data[data['Presentationid'] == presentation_id]).mark_bar().encode(
+        x=alt.X('Slidetitle:N', title='Slide Title',
+                axis=alt.Axis(labelAngle=-45), sort=['Slideorder']  # Rotate x-axis labels to make them easier to read
+        ),
+        y='Interaction Count:Q',  # count of interactions as the y-axis
+        tooltip=['Slidetitle:N', 'Interaction Count:Q', 'Slidetitle:N']  # Show full slide title, interaction count, and slide order on hover
+    ).properties(
+        title=df[df['Presentationid'] == presentation_id]['Presentation Name'].iloc[0]
+    )
 
-# Create a line chart using Altair
-chart = alt.Chart(data[data['Presentationid'] == 7021758]).mark_bar().encode(
-    x=alt.X('Slidetitle:N', title='Slide Title',
-            axis=alt.Axis(labelAngle=-45), sort=['Slideorder']  # Rotate x-axis labels to make them easier to read
-    ),
-    y='Interaction Count:Q',  # count of interactions as the y-axis
-    tooltip=['Slidetitle:N', 'Interaction Count:Q']  # Show full slide title, interaction count, and slide order on hover
-).properties(
-    title=df[df['Presentationid'] == 7021758]['Presentation Name'].iloc[0]
-)
 
-chart2 = alt.Chart(data[data['Presentationid'] == 6925119]).mark_bar().encode(
-    x=alt.X('Slidetitle:N', title='Slide Title',
-            axis=alt.Axis(labelAngle=-45), sort=['Slideorder']  # Rotate x-axis labels to make them easier to read
-    ),
-    y='Interaction Count:Q',  # count of interactions as the y-axis
-    tooltip=['Slidetitle:N', 'Interaction Count:Q']  # Show full slide title, interaction count, and slide order on hover
-).properties(
-    title=df[df['Presentationid'] == 6925119]['Presentation Name'].iloc[0]
-)
-# Display the chart in Streamlit
-st.altair_chart(chart, use_container_width=True)
+if selected_poll_slide != 'All':
+    audience_df = df[df['Slidetitle'] == selected_poll_slide][['Audience Name', 'Chosen Poll']]
+    data = df.merge(audience_df, on='Audience Name', how='left')
+    data.rename(columns={'Chosen Poll_y': 'Category'}, inplace=True)
+    data = data.groupby(['Presentationid', 'Slidetitle', 'Slideorder', 'Category']).size().reset_index().rename(columns={0: 'Interaction Count'})
+    data = data.sort_values(by='Slideorder')
+    data['Category'] = data['Category'].fillna('No Category')
+    # Create a line chart using Altair
+    chart1 = create_category_bar_chart(data, 6925119)
+    chart2 = create_category_bar_chart(data, 7021758)
+else:
+    data = df.copy()
+    data = data.groupby(['Presentationid', 'Slidetitle', 'Slideorder']).size().reset_index().rename(columns={0: 'Interaction Count'})
+    data = data.sort_values(by='Slideorder')
+    chart1 = create_all_interaction_bar_chart(data, 6925119)
+    chart2 = create_all_interaction_bar_chart(data, 7021758)
+
+
+
+
+st.altair_chart(chart1, use_container_width=True)
 st.altair_chart(chart2, use_container_width=True)
-
-
+# data = data[data['Presentationid'] == 7021758]
 # df
