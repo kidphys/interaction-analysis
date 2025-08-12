@@ -8,9 +8,7 @@ import altair as alt
 
 df = pd.read_csv('duke_presentation_interactions.csv')
 # df.groupby('Presentationid').size().sort_values(ascending=False)
-cols = ['ID', 'Presentationid', 'Interaction Source', 'Numberofreactions', 'Reactiontype',
-       'Slideid', 'Audienceid', 'Createdat', 'Updatedat', 'Slideoptions', 'Slidetitle', 'Slide Description', 'Title', 'Slideorder', 'Slidetypenormalized', 'Poll Vote', 'Presentation Name', 'Audience Name']
-df = df[df['Presentationid'].isin([7021758, 6925119])][cols].sort_values(by='Slideorder').copy()
+df = df[df['Presentationid'].isin([7021758, 6925119])].sort_values(by='Slideorder').copy()
 
 
 def extract_poll_value(slide_title, slide_options, poll_vote):
@@ -50,9 +48,9 @@ chosen_answers = df['Chosen Short Answer'].dropna().unique()
 
 
 poll_slide_titles = df[df['Slidetypenormalized'] == 'Poll']['Slidetitle'].unique()
-selected_poll_slide = st.selectbox('Break down by poll answer for question:', ['All'] + list(poll_slide_titles))
-st.session_state.selected_poll_slide = selected_poll_slide
-
+quiz_slide_titles = df[df['Slidetypenormalized'] == 'Pick Answer']['Slidetitle'].unique()
+selected_slide = st.selectbox('Break down by answer for quiz question:', ['All'] + list(quiz_slide_titles) + list(poll_slide_titles))
+st.session_state.selected_slide = selected_slide
 
 def create_category_bar_chart(data, presentation_id):
     return alt.Chart(data[data['Presentationid'] == presentation_id]).mark_bar().encode(
@@ -67,35 +65,36 @@ def create_category_bar_chart(data, presentation_id):
         title=df[df['Presentationid'] == presentation_id]['Presentation Name'].iloc[0]
     )
 
-def create_all_interaction_bar_chart(data, presentation_id):
-    return alt.Chart(data[data['Presentationid'] == presentation_id]).mark_bar().encode(
-        x=alt.X('Slidetitle:N', title='Slide Title',
-                axis=alt.Axis(labelAngle=-45), sort=['Slideorder']  # Rotate x-axis labels to make them easier to read
-        ),
-        y='Interaction Count:Q',  # count of interactions as the y-axis
-        tooltip=['Slidetitle:N', 'Interaction Count:Q', 'Slidetitle:N']  # Show full slide title, interaction count, and slide order on hover
-    ).properties(
-        title=df[df['Presentationid'] == presentation_id]['Presentation Name'].iloc[0]
-    )
 
-
-if selected_poll_slide != 'All':
-    audience_df = df[df['Slidetitle'] == selected_poll_slide][['Audience Name', 'Chosen Poll']]
-    data = df.merge(audience_df, on='Audience Name', how='left')
-    data.rename(columns={'Chosen Poll_y': 'Category'}, inplace=True)
-    data = data.groupby(['Presentationid', 'Slidetitle', 'Slideorder', 'Category']).size().reset_index().rename(columns={0: 'Interaction Count'})
-    data = data.sort_values(by='Slideorder')
-    data['Category'] = data['Category'].fillna('No Category')
-    # Create a line chart using Altair
-    chart1 = create_category_bar_chart(data, 6925119)
-    chart2 = create_category_bar_chart(data, 7021758)
+if selected_slide != 'All':
+    slide_type = df[df['Slidetitle'] == selected_slide]['Slidetypenormalized'].iloc[0]
+    if slide_type == 'Poll':
+        audience_df = df[df['Slidetitle'] == selected_slide][['Audience Name', 'Chosen Poll']]
+        data = df.merge(audience_df, on='Audience Name', how='left')
+        data.rename(columns={'Chosen Poll_y': 'Category'}, inplace=True)
+        data = data.groupby(['Presentationid', 'Slidetitle', 'Slideorder', 'Category']).size().reset_index().rename(columns={0: 'Interaction Count'})
+        data = data.sort_values(by='Slideorder')
+        data['Category'] = data['Category'].fillna('No Category')
+    if slide_type == 'Pick Answer':
+        audience_df = df[df['Slidetitle'] == selected_slide][['Audience Name', 'Correct']]
+        slide_title = df[df['Slidetitle'] == selected_slide]['Slidetitle'].iloc[0]
+        audience_df['Correct'] = audience_df['Correct'].fillna('No Category')
+        audience_df['Correct'] = audience_df['Correct'].apply(lambda x: f'Answered Correctly to `{slide_title}`' if x == 'correct' else f'Answered Incorrectly to `{slide_title}`')
+        data = df.merge(audience_df, on='Audience Name', how='left')
+        data.rename(columns={'Correct_y': 'Category'}, inplace=True)
+        data = data.groupby(['Presentationid', 'Slidetitle', 'Slideorder', 'Category']).size().reset_index().rename(columns={0: 'Interaction Count'})
+        data = data.sort_values(by='Slideorder')
+        data['Category'] = data['Category'].fillna('No Category')
 else:
     data = df.copy()
     data = data.groupby(['Presentationid', 'Slidetitle', 'Slideorder']).size().reset_index().rename(columns={0: 'Interaction Count'})
     data = data.sort_values(by='Slideorder')
-    chart1 = create_all_interaction_bar_chart(data, 6925119)
-    chart2 = create_all_interaction_bar_chart(data, 7021758)
+    data['Category'] = 'All'
+    # chart1 = create_all_interaction_bar_chart(data, 6925119)
+    # chart2 = create_all_interaction_bar_chart(data, 7021758)
 
+chart1 = create_category_bar_chart(data, 6925119)
+chart2 = create_category_bar_chart(data, 7021758)
 
 
 
