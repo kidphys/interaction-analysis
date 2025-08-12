@@ -49,7 +49,7 @@ chosen_answers = df['Chosen Short Answer'].dropna().unique()
 
 poll_slide_titles = df[df['Slidetypenormalized'] == 'Poll']['Slidetitle'].unique()
 quiz_slide_titles = df[df['Slidetypenormalized'] == 'Pick Answer']['Slidetitle'].unique()
-selected_slide = st.selectbox('Break down by answer for quiz question:', ['All'] + list(quiz_slide_titles) + list(poll_slide_titles))
+selected_slide = st.selectbox('Break down by answer for question:', ['All'] + list(quiz_slide_titles) + list(poll_slide_titles))
 st.session_state.selected_slide = selected_slide
 
 def create_category_bar_chart(data, presentation_id):
