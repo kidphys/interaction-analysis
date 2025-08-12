@@ -8,8 +8,13 @@ import altair as alt
 
 df = pd.read_csv('duke_presentation_interactions.csv')
 # df.groupby('Presentationid').size().sort_values(ascending=False)
-df = df[df['Presentationid'].isin([7021758, 6925119])].sort_values(by='Slideorder').copy()
+# df = df[df['Presentationid'].isin([7021758, 6925119])].sort_values(by='Slideorder').copy()
+df = df.sort_values(by='Slideorder').copy()
 
+
+presentation_titles = df['Presentation Name'].unique()
+selected_presentation = st.selectbox('Select presentation:', list(presentation_titles))
+st.session_state.selected_presentation = selected_presentation
 
 def extract_poll_value(slide_title, slide_options, poll_vote):
     if poll_vote is None or type(slide_options) != str:
@@ -46,6 +51,12 @@ chosen_answers = df['Chosen Short Answer'].dropna().unique()
 # selected_short_answer = st.selectbox('Filter participant who:', ['All'] + list(chosen_answers))
 # st.session_state.selected_short_answer = selected_short_answer
 
+if st.session_state.selected_presentation:
+    presentation_id = df[df['Presentation Name'] == st.session_state.selected_presentation]['Presentationid'].iloc[0]
+else:
+    presentation_id = 6925119
+
+df = df[df['Presentationid'] == presentation_id]
 
 poll_slide_titles = df[df['Slidetypenormalized'] == 'Poll']['Slidetitle'].unique()
 quiz_slide_titles = df[df['Slidetypenormalized'] == 'Pick Answer']['Slidetitle'].unique()
@@ -93,12 +104,16 @@ else:
     # chart1 = create_all_interaction_bar_chart(data, 6925119)
     # chart2 = create_all_interaction_bar_chart(data, 7021758)
 
-chart1 = create_category_bar_chart(data, 6925119)
-chart2 = create_category_bar_chart(data, 7021758)
+if st.session_state.selected_presentation:
+    presentation_id = df[df['Presentation Name'] == st.session_state.selected_presentation]['Presentationid'].iloc[0]
+    chart1 = create_category_bar_chart(data, presentation_id)
+else:
+    chart1 = create_category_bar_chart(data, 6925119)
+    # chart2 = create_category_bar_chart(data, 7021758)
 
 
 
 st.altair_chart(chart1, use_container_width=True)
-st.altair_chart(chart2, use_container_width=True)
+# st.altair_chart(chart2, use_container_width=True)
 # data = data[data['Presentationid'] == 7021758]
 # df
