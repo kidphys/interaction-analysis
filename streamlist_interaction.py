@@ -12,9 +12,15 @@ df = pd.read_csv('duke_presentation_interactions.csv')
 df = df.sort_values(by='Slideorder').copy()
 
 
-presentation_titles = df['Presentation Name'].unique()
-selected_presentation = st.selectbox('Select presentation:', list(presentation_titles))
-st.session_state.selected_presentation = selected_presentation
+st.set_page_config(layout="wide")
+# Create a container
+top_container = st.container()
+col1, col2 = top_container.columns([3, 1])
+
+with col2:
+    presentation_titles = df['Presentation Name'].unique()
+    selected_presentation = st.selectbox('Select presentation:', list(presentation_titles))
+    st.session_state.selected_presentation = selected_presentation
 
 def extract_poll_value(slide_title, slide_options, poll_vote):
     if poll_vote is None or type(slide_options) != str:
@@ -60,8 +66,11 @@ df = df[df['Presentationid'] == presentation_id]
 
 poll_slide_titles = df[df['Slidetypenormalized'] == 'Poll']['Slidetitle'].unique()
 quiz_slide_titles = df[df['Slidetypenormalized'] == 'Pick Answer']['Slidetitle'].unique()
-selected_slide = st.selectbox('Break down by answer for question:', ['All'] + list(quiz_slide_titles) + list(poll_slide_titles))
-st.session_state.selected_slide = selected_slide
+
+with col2:
+    selected_slide = st.selectbox('Break down by answer for question:', ['All'] + list(quiz_slide_titles) + list(poll_slide_titles))
+    st.session_state.selected_slide = selected_slide
+
 
 def create_category_bar_chart(data, presentation_id, y_field='Interaction Count'):
     return alt.Chart(data[data['Presentationid'] == presentation_id]).mark_bar().encode(
@@ -115,8 +124,9 @@ def get_chosen_presentation_id(df):
         return 6925119
 
 
-chart1 = create_category_bar_chart(interaction_count_data, get_chosen_presentation_id(df))
-st.altair_chart(chart1, use_container_width=True)
+with col1:
+    chart1 = create_category_bar_chart(interaction_count_data, get_chosen_presentation_id(df))
+    st.altair_chart(chart1, use_container_width=True)
 
 def get_audience_count_data(selected_slide, df):
     if selected_slide != 'All':
@@ -131,8 +141,9 @@ unique_audience_data = get_audience_count_data(selected_slide, df)
 presentation_audience_count = unique_audience_data.groupby('Presentationid')['Audienceid'].nunique().reset_index()['Audienceid'].iloc[0]
 
 
-is_audience_account_in_percentage = st.toggle('Percentage of audience', value=True)
-st.session_state.is_audience_account_in_percentage = is_audience_account_in_percentage
+with col1:
+    is_audience_account_in_percentage = st.toggle('Percentage of audience', value=True)
+    st.session_state.is_audience_account_in_percentage = is_audience_account_in_percentage
 
 unique_audience_data = unique_audience_data.groupby(['Presentationid', 'Slidetitle', 'Slideorder', 'Category'])['Audienceid'].nunique().reset_index().rename(columns={'Audienceid': 'Audience Count'})
 unique_audience_data = unique_audience_data.sort_values(by='Slideorder')
@@ -143,4 +154,8 @@ if st.session_state.is_audience_account_in_percentage:
     y_field = 'Percent of engaged audience'
 
 chart2 = create_category_bar_chart(unique_audience_data, get_chosen_presentation_id(df), y_field=y_field)
-st.altair_chart(chart2, use_container_width=True)
+
+with col1:
+    st.altair_chart(chart2, use_container_width=True)
+
+top_container = st.container()
