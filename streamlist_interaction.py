@@ -1,3 +1,4 @@
+import ast
 import json
 from select import poll
 import streamlit as st
@@ -22,6 +23,19 @@ with col2:
     selected_presentation = st.selectbox('Select presentation:', list(presentation_titles), index=default_idx)
     st.session_state.selected_presentation = selected_presentation
 
+def extract_quiz_value(slide_title, slide_options, vote):
+    if vote is None or type(vote) == float or type(slide_options) != str:
+        return None
+    else:
+        vote = ast.literal_eval(vote)
+        if len(vote) == 0:
+            return None
+        data = json.loads(slide_options)
+        for option in data:
+            if option['id'] == vote[0]:
+                return f'Answered: `{option["title"]}` for "{slide_title}"'
+
+
 def extract_poll_value(slide_title, slide_options, poll_vote):
     if poll_vote is None or type(slide_options) != str:
         return None
@@ -32,6 +46,7 @@ def extract_poll_value(slide_title, slide_options, poll_vote):
                 return f'Answered: `{option["title"]}` for "{slide_title}"'
 
 
+df['Chosen Pick Answer'] = df.apply(lambda x: extract_quiz_value(x['Slidetitle'], x['Slideoptions'], x['Vote']), axis=1)
 df['Chosen Poll'] = df.apply(lambda x: extract_poll_value(x['Slidetitle'], x['Slideoptions'], x['Poll Vote']), axis=1)
 poll_answers = df[df['Chosen Poll'].notna()]['Chosen Poll'].unique()
 poll_answers = ['All'] + list(poll_answers)
@@ -53,6 +68,8 @@ def extract_short_answer(slide_title, short_answer):
 
 df['Chosen Short Answer'] = df.apply(lambda x: extract_short_answer(x['Slidetitle'], x['Title']), axis=1)
 chosen_answers = df['Chosen Short Answer'].dropna().unique()
+
+df['Answer Text'] = df[['Chosen Pick Answer', 'Chosen Poll', 'Chosen Short Answer']].bfill(axis=1).iloc[:, 0]
 
 if st.session_state.selected_presentation:
     presentation_id = df[df['Presentation Name'] == st.session_state.selected_presentation]['Presentationid'].iloc[0]
@@ -87,6 +104,19 @@ def create_category_bar_chart(data, presentation_id, y_field='Interaction Count'
         xOffset='Category:N',
         color='Category:N',
         tooltip=['Category:N', f'{y_field}:Q', 'Slidetitle:N']  # Show full slide title, interaction count, and slide order on hover
+    ).properties(
+        title=df[df['Presentationid'] == presentation_id]['Presentation Name'].iloc[0]
+    )
+
+def create_stacked_category_bar_chart(data, presentation_id, y_field='Interaction Count'):
+    return alt.Chart(data[data['Presentationid'] == presentation_id]).mark_bar().encode(
+        x=alt.X('Slidetitle:N', title='Slide Title',
+                axis=alt.Axis(labelAngle=-45), sort=['Slideorder']  # Rotate x-axis labels to make them easier to read
+        ),
+        y=f'{y_field}:Q',  # count of interactions as the y-axis
+        xOffset='Answer Text:N',
+        color='Category:N',
+        tooltip=['Category:N', f'{y_field}:Q', 'Slidetitle:N', 'Answer Text:N']  # Show full slide title, interaction count, and slide order on hover
     ).properties(
         title=df[df['Presentationid'] == presentation_id]['Presentation Name'].iloc[0]
     )
@@ -142,7 +172,7 @@ with col1:
     is_audience_account_in_percentage = st.toggle('Percentage of audience', value=True)
     st.session_state.is_audience_account_in_percentage = is_audience_account_in_percentage
 
-unique_audience_data = unique_audience_data.groupby(['Presentationid', 'Slideid', 'Slidetitle', 'Slideorder', 'Category'])['Audienceid'].nunique().reset_index().rename(columns={'Audienceid': 'Audience Count'})
+unique_audience_data = unique_audience_data.groupby(['Presentationid', 'Slideid', 'Slidetitle', 'Slideorder', 'Answer Text', 'Category'])['Audienceid'].nunique().reset_index().rename(columns={'Audienceid': 'Audience Count'})
 unique_audience_data = unique_audience_data.sort_values(by='Slideorder')
 
 y_field = 'Audience Count'
@@ -150,7 +180,8 @@ if st.session_state.is_audience_account_in_percentage:
     unique_audience_data['Percent of engaged audience'] = unique_audience_data['Audience Count'] / presentation_audience_count * 100
     y_field = 'Percent of engaged audience'
 
-chart2 = create_category_bar_chart(unique_audience_data, get_chosen_presentation_id(df), y_field=y_field)
+# chart2 = create_category_bar_chart(unique_audience_data, get_chosen_presentation_id(df), y_field=y_field)
+chart2 = create_stacked_category_bar_chart(unique_audience_data, get_chosen_presentation_id(df), y_field=y_field)
 
 with col1:
     st.altair_chart(chart2, use_container_width=True)
