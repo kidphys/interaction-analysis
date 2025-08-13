@@ -172,12 +172,10 @@ with col2:
 with col1:
     first_funnel_data = enrich_audience_with_category(st.session_state.selected_slide, df)
     first_funnel_data = first_funnel_data[first_funnel_data['Slideid'] == st.session_state.first_selected_slide['Slideid']]
-    first_funnel_df = first_funnel_data.groupby('Category')['Audienceid'].agg(lambda x: set(x)).reset_index()
-
+    first_funnel_df = first_funnel_data.groupby(['Category', 'Slideorder'])['Audienceid'].agg(lambda x: set(x)).reset_index()
     second_funnel_data = enrich_audience_with_category(st.session_state.selected_slide, df)
     second_funnel_data = second_funnel_data[second_funnel_data['Slideid'] == st.session_state.second_selected_slide['Slideid']]
-    second_funnel_df = second_funnel_data.groupby('Category')['Audienceid'].agg(lambda x: set(x)).reset_index()
-
+    second_funnel_df = second_funnel_data.groupby(['Category', 'Slideorder'])['Audienceid'].agg(lambda x: set(x)).reset_index()
     funnel_df = pd.merge(first_funnel_df, second_funnel_df, on='Category', how='outer')
     funnel_df = funnel_df.fillna('')
     funnel_df['Audienceid_x'] = funnel_df['Audienceid_x'].apply(lambda x: x if x is not '' else set())
@@ -188,12 +186,11 @@ with col1:
     funnel_df[first_step] = funnel_df['Audienceid_x'].apply(lambda x: len(x))
     funnel_df[second_step] = funnel_df['Second Step Audiences'].apply(lambda x: len(x))
     funnel_df['Percent converted to 2nd step'] = funnel_df[f"#{st.session_state.second_selected_slide['Index']} - {st.session_state.second_selected_slide['Slidetitle']}"] / funnel_df[f"#{st.session_state.first_selected_slide['Index']} - {st.session_state.first_selected_slide['Slidetitle']}"] * 100
-
     # Clean up and reshape
-    plot_df = funnel_df[['Category', first_step, second_step, 'Percent converted to 2nd step']].copy()
+    plot_df = funnel_df.copy()
     plot_df = plot_df.fillna(0)  # in case some categories are missing a step
     long_df = plot_df.melt(
-        id_vars=['Category', 'Percent converted to 2nd step'],
+        id_vars=['Category', 'Percent converted to 2nd step', 'Slideorder_x', 'Slideorder_y'] ,
         value_vars=[first_step, second_step],
         var_name='Step',
         value_name='Audience Count'
@@ -202,18 +199,17 @@ with col1:
             lambda row: f"{row['Percent converted to 2nd step']:,.2f}%" if row['Step'] == second_step else "100%",
             axis=1
         )
-    st.write(long_df)
-
+    # long_df = long_df.sort_values(by='Slideorder')
+    long_df['Slideorder'] = long_df.apply(lambda x: x['Slideorder_x'] if x['Step'] == first_step else x['Slideorder_y'], axis=1)
 
     # Bars
     chart3 = alt.Chart(long_df).mark_bar().encode(
-        x=alt.X('Step:N', title='Step'),
+        x=alt.X('Step:N', title='Step', axis=alt.Axis(labelAngle=-45), sort=['Slideorder']),
         y=alt.Y('Audience Count:Q', title='Audience Count'),
         xOffset='Category:N',
         color='Category:N',
-        tooltip=['Audience Count:Q', 'Percent:N'],
+        tooltip=['Audience Count:Q', 'Percent:N', 'Category:N'],
         text='Percent:N'
-    )
+    ).properties(title='Conversion funnel from 1st to 2nd slide')
 
-    # st.write('Funnel')
     st.altair_chart(chart3, use_container_width=True)
