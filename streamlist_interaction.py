@@ -63,29 +63,28 @@ quiz_slide_titles = df[df['Slidetypenormalized'] == 'Pick Answer']['Slidetitle']
 selected_slide = st.selectbox('Break down by answer for question:', ['All'] + list(quiz_slide_titles) + list(poll_slide_titles))
 st.session_state.selected_slide = selected_slide
 
-def create_category_bar_chart(data, presentation_id):
+def create_category_bar_chart(data, presentation_id, y_field='Interaction Count'):
     return alt.Chart(data[data['Presentationid'] == presentation_id]).mark_bar().encode(
         x=alt.X('Slidetitle:N', title='Slide Title',
                 axis=alt.Axis(labelAngle=-45), sort=['Slideorder']  # Rotate x-axis labels to make them easier to read
         ),
-        y='Interaction Count:Q',  # count of interactions as the y-axis
+        y=f'{y_field}:Q',  # count of interactions as the y-axis
         xOffset='Category:N',
         color='Category:N',
-        tooltip=['Category:N', 'Interaction Count:Q', 'Slidetitle:N']  # Show full slide title, interaction count, and slide order on hover
+        tooltip=['Category:N', f'{y_field}:Q', 'Slidetitle:N']  # Show full slide title, interaction count, and slide order on hover
     ).properties(
         title=df[df['Presentationid'] == presentation_id]['Presentation Name'].iloc[0]
     )
 
 
-if selected_slide != 'All':
+def map_data_with_audience_category(selected_slide, df):
     slide_type = df[df['Slidetitle'] == selected_slide]['Slidetypenormalized'].iloc[0]
     if slide_type == 'Poll':
         audience_df = df[df['Slidetitle'] == selected_slide][['Audience Name', 'Chosen Poll']]
+        audience_df['Chosen Poll'] = audience_df['Chosen Poll'].fillna('No Category')
         data = df.merge(audience_df, on='Audience Name', how='left')
         data.rename(columns={'Chosen Poll_y': 'Category'}, inplace=True)
-        data = data.groupby(['Presentationid', 'Slidetitle', 'Slideorder', 'Category']).size().reset_index().rename(columns={0: 'Interaction Count'})
-        data = data.sort_values(by='Slideorder')
-        data['Category'] = data['Category'].fillna('No Category')
+        return data
     if slide_type == 'Pick Answer':
         audience_df = df[df['Slidetitle'] == selected_slide][['Audience Name', 'Correct']]
         slide_title = df[df['Slidetitle'] == selected_slide]['Slidetitle'].iloc[0]
@@ -93,27 +92,46 @@ if selected_slide != 'All':
         audience_df['Correct'] = audience_df['Correct'].apply(lambda x: f'Answered Correctly to `{slide_title}`' if x == 'correct' else f'Answered Incorrectly to `{slide_title}`')
         data = df.merge(audience_df, on='Audience Name', how='left')
         data.rename(columns={'Correct_y': 'Category'}, inplace=True)
-        data = data.groupby(['Presentationid', 'Slidetitle', 'Slideorder', 'Category']).size().reset_index().rename(columns={0: 'Interaction Count'})
-        data = data.sort_values(by='Slideorder')
-        data['Category'] = data['Category'].fillna('No Category')
-else:
-    data = df.copy()
-    data = data.groupby(['Presentationid', 'Slidetitle', 'Slideorder']).size().reset_index().rename(columns={0: 'Interaction Count'})
-    data = data.sort_values(by='Slideorder')
-    data['Category'] = 'All'
-    # chart1 = create_all_interaction_bar_chart(data, 6925119)
-    # chart2 = create_all_interaction_bar_chart(data, 7021758)
-
-if st.session_state.selected_presentation:
-    presentation_id = df[df['Presentation Name'] == st.session_state.selected_presentation]['Presentationid'].iloc[0]
-    chart1 = create_category_bar_chart(data, presentation_id)
-else:
-    chart1 = create_category_bar_chart(data, 6925119)
-    # chart2 = create_category_bar_chart(data, 7021758)
+        return data
 
 
+def get_interaction_count_data(selected_slide, df):
+    if selected_slide != 'All':
+        return map_data_with_audience_category(selected_slide, df)
+    else:
+        data = df.copy()
+        data['Category'] = 'All'
+        return data
+
+interaction_count_data = get_interaction_count_data(selected_slide, df)
+interaction_count_data = interaction_count_data.groupby(['Presentationid', 'Slidetitle', 'Slideorder', 'Category']).size().reset_index().rename(columns={0: 'Interaction Count'})
+interaction_count_data = interaction_count_data.sort_values(by='Slideorder')
+
+
+def get_chosen_presentation_id(df):
+    if st.session_state.selected_presentation:
+        return df[df['Presentation Name'] == st.session_state.selected_presentation]['Presentationid'].iloc[0]
+    else:
+        return 6925119
+
+
+chart1 = create_category_bar_chart(interaction_count_data, get_chosen_presentation_id(df))
+
+def get_audience_count_data(selected_slide, df):
+    if selected_slide != 'All':
+        return map_data_with_audience_category(selected_slide, df)
+    else:
+        data = df.copy()
+        data['Category'] = 'All'
+        return data
+
+
+unique_audience_data = get_audience_count_data(selected_slide, df)
+unique_audience_data = unique_audience_data.groupby(['Presentationid', 'Slidetitle', 'Slideorder', 'Category'])['Audienceid'].nunique().reset_index().rename(columns={'Audienceid': 'Audience Count'})
+unique_audience_data = unique_audience_data.sort_values(by='Slideorder')
+
+chart2 = create_category_bar_chart(unique_audience_data, get_chosen_presentation_id(df), y_field='Audience Count')
 
 st.altair_chart(chart1, use_container_width=True)
-# st.altair_chart(chart2, use_container_width=True)
-# data = data[data['Presentationid'] == 7021758]
-# df
+st.altair_chart(chart2, use_container_width=True)
+
