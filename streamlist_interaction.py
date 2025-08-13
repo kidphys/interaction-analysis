@@ -116,6 +116,7 @@ def get_chosen_presentation_id(df):
 
 
 chart1 = create_category_bar_chart(interaction_count_data, get_chosen_presentation_id(df))
+st.altair_chart(chart1, use_container_width=True)
 
 def get_audience_count_data(selected_slide, df):
     if selected_slide != 'All':
@@ -127,11 +128,19 @@ def get_audience_count_data(selected_slide, df):
 
 
 unique_audience_data = get_audience_count_data(selected_slide, df)
+presentation_audience_count = unique_audience_data.groupby('Presentationid')['Audienceid'].nunique().reset_index()['Audienceid'].iloc[0]
+
+
+is_audience_account_in_percentage = st.toggle('Percentage of audience', value=True)
+st.session_state.is_audience_account_in_percentage = is_audience_account_in_percentage
+
 unique_audience_data = unique_audience_data.groupby(['Presentationid', 'Slidetitle', 'Slideorder', 'Category'])['Audienceid'].nunique().reset_index().rename(columns={'Audienceid': 'Audience Count'})
 unique_audience_data = unique_audience_data.sort_values(by='Slideorder')
 
-chart2 = create_category_bar_chart(unique_audience_data, get_chosen_presentation_id(df), y_field='Audience Count')
+y_field = 'Audience Count'
+if st.session_state.is_audience_account_in_percentage:
+    unique_audience_data['Percent of engaged audience'] = unique_audience_data['Audience Count'] / presentation_audience_count * 100
+    y_field = 'Percent of engaged audience'
 
-st.altair_chart(chart1, use_container_width=True)
+chart2 = create_category_bar_chart(unique_audience_data, get_chosen_presentation_id(df), y_field=y_field)
 st.altair_chart(chart2, use_container_width=True)
-
