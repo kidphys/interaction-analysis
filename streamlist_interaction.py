@@ -5,7 +5,6 @@ import pandas as pd
 import numpy as np
 import altair as alt
 
-
 df = pd.read_csv('duke_presentation_interactions.csv')
 # df.groupby('Presentationid').size().sort_values(ascending=False)
 # df = df[df['Presentationid'].isin([7021758, 6925119])].sort_values(by='Slideorder').copy()
@@ -171,31 +170,50 @@ with col2:
 
 
 with col1:
-    first_slide_audiences = df[df['Slideid'] == st.session_state.first_selected_slide['Slideid']]['Audienceid'].to_list()
-    first_slide_audiences = set(first_slide_audiences)
-    second_slide_audiences = df[df['Slideid'] == st.session_state.second_selected_slide['Slideid']]['Audienceid'].to_list()
-    second_slide_audiences = set(second_slide_audiences)
-    first_slide_audience_count = len(first_slide_audiences)
-    common_audiences = first_slide_audiences & second_slide_audiences
-    common_audiences_count = len(common_audiences)
+    first_funnel_data = enrich_audience_with_category(st.session_state.selected_slide, df)
+    first_funnel_data = first_funnel_data[first_funnel_data['Slideid'] == st.session_state.first_selected_slide['Slideid']]
+    first_funnel_df = first_funnel_data.groupby('Category')['Audienceid'].agg(lambda x: set(x)).reset_index()
 
+    second_funnel_data = enrich_audience_with_category(st.session_state.selected_slide, df)
+    second_funnel_data = second_funnel_data[second_funnel_data['Slideid'] == st.session_state.second_selected_slide['Slideid']]
+    second_funnel_df = second_funnel_data.groupby('Category')['Audienceid'].agg(lambda x: set(x)).reset_index()
 
-    funnel_df = pd.DataFrame({
-        'Step': ['1st slide', '2nd slide'],
-        'Audience Count': [first_slide_audience_count, common_audiences_count]
-    })
+    funnel_df = pd.merge(first_funnel_df, second_funnel_df, on='Category', how='outer')
+    funnel_df = funnel_df.fillna('')
+    funnel_df['Audienceid_x'] = funnel_df['Audienceid_x'].apply(lambda x: x if x is not '' else set())
+    funnel_df['Audienceid_y'] = funnel_df['Audienceid_y'].apply(lambda x: x if x is not '' else set())
+    funnel_df['Second Step Audiences'] = funnel_df.apply(lambda x: (x['Audienceid_x'] & x['Audienceid_y']), axis=1)
+    first_step = f"#{st.session_state.first_selected_slide['Index']} - {st.session_state.first_selected_slide['Slidetitle']}"
+    second_step = f"#{st.session_state.second_selected_slide['Index']} - {st.session_state.second_selected_slide['Slidetitle']}"
+    funnel_df[first_step] = funnel_df['Audienceid_x'].apply(lambda x: len(x))
+    funnel_df[second_step] = funnel_df['Second Step Audiences'].apply(lambda x: len(x))
+    funnel_df['Percent converted to 2nd step'] = funnel_df[f"#{st.session_state.second_selected_slide['Index']} - {st.session_state.second_selected_slide['Slidetitle']}"] / funnel_df[f"#{st.session_state.first_selected_slide['Index']} - {st.session_state.first_selected_slide['Slidetitle']}"] * 100
 
-    denom = max(first_slide_audience_count, 1)
-    funnel_df['percent_frac'] = funnel_df['Audience Count'] / denom
-    funnel_df['Percent'] = (funnel_df['percent_frac'] * 100).round(0).astype(int).astype(str) + '%'
+    # Clean up and reshape
+    plot_df = funnel_df[['Category', first_step, second_step, 'Percent converted to 2nd step']].copy()
+    plot_df = plot_df.fillna(0)  # in case some categories are missing a step
+    long_df = plot_df.melt(
+        id_vars=['Category', 'Percent converted to 2nd step'],
+        value_vars=[first_step, second_step],
+        var_name='Step',
+        value_name='Audience Count'
+    )
+    long_df['Percent'] = long_df.apply(
+            lambda row: f"{row['Percent converted to 2nd step']:,.2f}%" if row['Step'] == second_step else "100%",
+            axis=1
+        )
+    st.write(long_df)
+
 
     # Bars
-    chart3 = alt.Chart(funnel_df).mark_bar().encode(
+    chart3 = alt.Chart(long_df).mark_bar().encode(
         x=alt.X('Step:N', title='Step'),
         y=alt.Y('Audience Count:Q', title='Audience Count'),
-        tooltip=['Percent:N', 'Audience Count:Q'],
+        xOffset='Category:N',
+        color='Category:N',
+        tooltip=['Audience Count:Q', 'Percent:N'],
         text='Percent:N'
     )
 
-    st.write('Funnel')
+    # st.write('Funnel')
     st.altair_chart(chart3, use_container_width=True)
