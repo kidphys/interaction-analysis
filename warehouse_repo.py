@@ -67,17 +67,17 @@ def map_data_with_audience_category(selected_slide, df):
     slide_type = df[df['Slideid'] == selected_slide['Slideid']]['Slidetypenormalized'].iloc[0]
     if slide_type == 'Poll':
         audience_df = df[df['Slideid'] == selected_slide['Slideid']][[audience_id_field, 'Chosen Poll']]
-        audience_df['Chosen Poll'] = audience_df['Chosen Poll'].fillna('No Category')
+        audience_df['Chosen Poll'] = audience_df['Chosen Poll'].fillna('No Segment')
         data = df.merge(audience_df, on=audience_id_field, how='left')
-        data.rename(columns={'Chosen Poll_y': 'Category'}, inplace=True)
+        data.rename(columns={'Chosen Poll_y': 'Segment'}, inplace=True)
         return data
     if slide_type == 'Pick Answer':
         audience_df = df[df['Slideid'] == selected_slide['Slideid']][[audience_id_field, 'correct']]
         slide_title = df[df['Slideid'] == selected_slide['Slideid']]['Slidetitle'].iloc[0]
-        audience_df['correct'] = audience_df['correct'].fillna('No Category')
+        audience_df['correct'] = audience_df['correct'].fillna('No Segment')
         audience_df['correct'] = audience_df['correct'].apply(lambda x: f'Answered Correctly to `{slide_title}`' if x == 'correct' else f'Answered Incorrectly to `{slide_title}`')
         data = df.merge(audience_df, on=audience_id_field, how='left')
-        data.rename(columns={'correct_y': 'Category'}, inplace=True)
+        data.rename(columns={'correct_y': 'Segment'}, inplace=True)
         return data
 
 
@@ -86,5 +86,5 @@ def enrich_audience_with_category(selected_slide, df):
         return map_data_with_audience_category(selected_slide, df)
     else:
         data = df.copy()
-        data['Category'] = 'All'
+        data['Segment'] = 'All'
         return data
