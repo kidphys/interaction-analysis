@@ -1,0 +1,189 @@
+import ast
+import json
+from select import poll
+import streamlit as st
+import pandas as pd
+import numpy as np
+import altair as alt
+
+from warehouse_repo import enrich_audience_with_category, extract_poll_value, extract_quiz_value, extract_short_answer
+from warehouse_repo import get_interactions_of_presentation, get_presentations_of_user
+
+kiotviet_user_id = 259137
+presentation_df = get_presentations_of_user(kiotviet_user_id)
+
+st.set_page_config(layout="wide")
+# Create a container
+top_container = st.container()
+col1, col2 = top_container.columns([3, 1])
+
+with col2:
+    presentations = presentation_df.to_dict(orient='records')
+    default_idx = 0
+    selected_presentation = st.selectbox('Select presentation:', list(presentations), format_func=lambda x: x['name'], index=default_idx)
+    st.session_state.selected_presentation = selected_presentation
+
+if st.session_state.selected_presentation:
+    presentation_id = st.session_state.selected_presentation['id']
+else:
+    presentation_id = 7021758
+
+df = get_interactions_of_presentation(presentation_id)
+
+df['Chosen Pick Answer'] = df.apply(lambda x: extract_quiz_value(x['Slidetitle'], x['Slideoptions'], x['Vote']), axis=1)
+df['Chosen Poll'] = df.apply(lambda x: extract_poll_value(x['Slidetitle'], x['Slideoptions'], x['poll_vote']), axis=1)
+poll_answers = df[df['Chosen Poll'].notna()]['Chosen Poll'].unique()
+poll_answers = ['All'] + list(poll_answers)
+
+
+if 'selected_poll_answers' not in st.session_state:
+    st.session_state.selected_poll_answers = 'All'
+if 'selected_slide_type' not in st.session_state:
+    st.session_state.selected_slide_type = 'All'
+if 'selected_short_answer' not in st.session_state:
+    st.session_state.selected_short_answer = 'All'
+
+df['Chosen Short Answer'] = df.apply(lambda x: extract_short_answer(x['Slidetitle'], x['Title']), axis=1)
+chosen_answers = df['Chosen Short Answer'].dropna().unique()
+
+df['Answer Text'] = df[['Chosen Pick Answer', 'Chosen Poll', 'Chosen Short Answer']].bfill(axis=1).iloc[:, 0]
+
+df['Slidetitle'] = df['Slidetitle'].astype(str)
+df['Slidetitle'] = df.apply(lambda x: x['Slidetitle'] if x['Slidetitle'] != 'nan' else '(empty)', axis=1)
+
+all_slides_df = df.groupby(['Slideid', 'Slidetitle', 'Slidetypenormalized', 'Slideorder']).size().reset_index().sort_values(by='Slideorder')[['Slideid', 'Slidetitle', 'Slidetypenormalized']]
+all_slides_df['Index'] = range(1, len(all_slides_df) + 1)
+all_slide_titles = all_slides_df.to_dict('records')
+poll_slide_titles = all_slides_df[all_slides_df['Slidetypenormalized'] == 'Poll'][['Slideid', 'Slidetitle', 'Slidetypenormalized']].to_dict('records')
+quiz_slide_titles = all_slides_df[all_slides_df['Slidetypenormalized'] == 'Pick Answer'][['Slideid', 'Slidetitle', 'Slidetypenormalized']].to_dict('records')
+all_slide_titles = [{'Slideid': 'All', 'Slidetitle': 'All', 'Slidetypenormalized': '', 'Index': 0}] + all_slide_titles
+
+with col2:
+    question_slides = [{'Slideid': 'All', 'Slidetitle': 'All', 'Slidetypenormalized': ''}] + list(quiz_slide_titles) + list(poll_slide_titles)
+    selected_slide = st.selectbox('Break down by answer for question:',
+                                  options=question_slides,
+                                  format_func=lambda x: f"{x['Slidetypenormalized']} - {x['Slidetitle']}")
+    st.session_state.selected_slide = selected_slide
+
+
+def create_category_bar_chart(data, y_field='Interaction Count', title='Empty'):
+    return alt.Chart(data).mark_bar().encode(
+        x=alt.X('Slidetitle:N', title='Slide Title',
+                axis=alt.Axis(labelAngle=-45), sort=['Slideorder']  # Rotate x-axis labels to make them easier to read
+        ),
+        y=f'{y_field}:Q',  # count of interactions as the y-axis
+        xOffset='Category:N',
+        color='Category:N',
+        tooltip=['Category:N', f'{y_field}:Q', 'Slidetitle:N']  # Show full slide title, interaction count, and slide order on hover
+    ).properties(
+        title=title
+    )
+
+def create_stacked_category_bar_chart(data, y_field='Interaction Count', title='Empty'):
+    return alt.Chart(data).mark_bar().encode(
+        x=alt.X('Slidetitle:N', title='Slide Title',
+                axis=alt.Axis(labelAngle=-45), sort=['Slideorder']  # Rotate x-axis labels to make them easier to read
+        ),
+        y=f'{y_field}:Q',  # count of interactions as the y-axis
+        xOffset='Answer Text:N',
+        color='Category:N',
+        tooltip=['Category:N', f'{y_field}:Q', 'Slidetitle:N', 'Answer Text:N']  # Show full slide title, interaction count, and slide order on hover
+    ).properties(
+        title=title
+    )
+
+
+def get_active_presentation_title():
+    presentation_id = st.session_state.selected_presentation['id']
+    return presentation_df[presentation_df['id'] == presentation_id]['name'].iloc[0]
+
+
+interaction_count_data = enrich_audience_with_category(selected_slide, df)
+interaction_count_data = interaction_count_data.groupby(['Slideid', 'Slidetitle', 'Slideorder', 'Category']).size().reset_index().rename(columns={0: 'Interaction Count'})
+interaction_count_data = interaction_count_data.sort_values(by='Slideorder')
+
+
+with col1:
+    chart1 = create_category_bar_chart(interaction_count_data, title=get_active_presentation_title())
+    st.altair_chart(chart1, use_container_width=True)
+
+unique_audience_data = enrich_audience_with_category(selected_slide, df)
+presentation_audience_count = unique_audience_data['audienceid'].nunique()
+
+
+with col1:
+    is_audience_account_in_percentage = st.toggle('Percentage of audience', value=True)
+    st.session_state.is_audience_account_in_percentage = is_audience_account_in_percentage
+
+unique_audience_data = unique_audience_data.groupby(['Slideid', 'Slidetitle', 'Slideorder', 'Answer Text', 'Category'])['audienceid'].nunique().reset_index().rename(columns={'audienceid': 'Audience Count'})
+unique_audience_data = unique_audience_data.sort_values(by='Slideorder')
+st.write(unique_audience_data)
+
+y_field = 'Audience Count'
+if st.session_state.is_audience_account_in_percentage:
+    unique_audience_data['Percent of engaged audience'] = unique_audience_data['Audience Count'] / presentation_audience_count * 100
+    y_field = 'Percent of engaged audience'
+
+chart2 = create_stacked_category_bar_chart(unique_audience_data, y_field=y_field, title=get_active_presentation_title())
+
+with col1:
+    st.altair_chart(chart2, use_container_width=True)
+
+
+# bottom_container = st.container()
+# col1, col2 = bottom_container.columns([3, 1])
+
+
+# with col2:
+#     slides_to_select = all_slide_titles[1:].copy()
+#     first_selected_slide = st.selectbox('Select 1st slide', options=slides_to_select, format_func=lambda x: f"#{x['Index']} - {x['Slidetypenormalized']} - {x['Slidetitle']}", key="select_first_slide")
+#     st.session_state.first_selected_slide = first_selected_slide
+#     second_slides_candidates = [s for s in slides_to_select if s['Index'] > first_selected_slide['Index']]
+#     second_selected_slide = st.selectbox('Select 2nd slide', options=second_slides_candidates, format_func=lambda x: f"#{x['Index']} - {x['Slidetypenormalized']} - {x['Slidetitle']}")
+#     st.session_state.second_selected_slide = second_selected_slide
+
+
+# with col1:
+#     first_funnel_data = enrich_audience_with_category(st.session_state.selected_slide, df)
+#     first_funnel_data = first_funnel_data[first_funnel_data['Slideid'] == st.session_state.first_selected_slide['Slideid']]
+#     first_funnel_df = first_funnel_data.groupby(['Category', 'Slideorder'])['Audienceid'].agg(lambda x: set(x)).reset_index()
+#     second_funnel_data = enrich_audience_with_category(st.session_state.selected_slide, df)
+#     second_funnel_data = second_funnel_data[second_funnel_data['Slideid'] == st.session_state.second_selected_slide['Slideid']]
+#     second_funnel_df = second_funnel_data.groupby(['Category', 'Slideorder'])['Audienceid'].agg(lambda x: set(x)).reset_index()
+#     funnel_df = pd.merge(first_funnel_df, second_funnel_df, on='Category', how='outer')
+#     funnel_df = funnel_df.fillna('')
+#     funnel_df['Audienceid_x'] = funnel_df['Audienceid_x'].apply(lambda x: x if x is not '' else set())
+#     funnel_df['Audienceid_y'] = funnel_df['Audienceid_y'].apply(lambda x: x if x is not '' else set())
+#     funnel_df['Second Step Audiences'] = funnel_df.apply(lambda x: (x['Audienceid_x'] & x['Audienceid_y']), axis=1)
+#     first_step = f"#{st.session_state.first_selected_slide['Index']} - {st.session_state.first_selected_slide['Slidetitle']}"
+#     second_step = f"#{st.session_state.second_selected_slide['Index']} - {st.session_state.second_selected_slide['Slidetitle']}"
+#     funnel_df[first_step] = funnel_df['Audienceid_x'].apply(lambda x: len(x))
+#     funnel_df[second_step] = funnel_df['Second Step Audiences'].apply(lambda x: len(x))
+#     funnel_df['Percent converted to 2nd step'] = funnel_df[f"#{st.session_state.second_selected_slide['Index']} - {st.session_state.second_selected_slide['Slidetitle']}"] / funnel_df[f"#{st.session_state.first_selected_slide['Index']} - {st.session_state.first_selected_slide['Slidetitle']}"] * 100
+#     # Clean up and reshape
+#     plot_df = funnel_df.copy()
+#     plot_df = plot_df.fillna(0)  # in case some categories are missing a step
+#     long_df = plot_df.melt(
+#         id_vars=['Category', 'Percent converted to 2nd step', 'Slideorder_x', 'Slideorder_y'] ,
+#         value_vars=[first_step, second_step],
+#         var_name='Step',
+#         value_name='Audience Count'
+#     )
+#     long_df['Percent'] = long_df.apply(
+#             lambda row: f"{row['Percent converted to 2nd step']:,.2f}%" if row['Step'] == second_step else "100%",
+#             axis=1
+#         )
+#     # long_df = long_df.sort_values(by='Slideorder')
+#     long_df['Slideorder'] = long_df.apply(lambda x: x['Slideorder_x'] if x['Step'] == first_step else x['Slideorder_y'], axis=1)
+
+#     # Bars
+#     chart3 = alt.Chart(long_df).mark_bar().encode(
+#         x=alt.X('Step:N', title='Step', axis=alt.Axis(labelAngle=-45), sort=['Slideorder']),
+#         y=alt.Y('Audience Count:Q', title='Audience Count'),
+#         xOffset='Category:N',
+#         color='Category:N',
+#         tooltip=['Audience Count:Q', 'Percent:N', 'Category:N'],
+#         text='Percent:N'
+#     ).properties(title='Conversion funnel from 1st to 2nd slide')
+
+#     st.altair_chart(chart3, use_container_width=True)

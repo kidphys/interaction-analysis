@@ -9,6 +9,7 @@ import altair as alt
 df = pd.read_csv('duke_presentation_interactions.csv')
 # df.groupby('Presentationid').size().sort_values(ascending=False)
 # df = df[df['Presentationid'].isin([7021758, 6925119])].sort_values(by='Slideorder').copy()
+df = df[['Presentationid', 'Presentation Name', 'Slideid', 'Slidetitle', 'Slidetypenormalized', 'Slideoptions', 'Slideorder', 'Audience Name', 'Audienceid', 'Vote', 'Poll Vote', 'Title']]
 df = df.sort_values(by='Slideorder').copy()
 
 
