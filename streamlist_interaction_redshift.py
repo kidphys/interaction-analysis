@@ -67,7 +67,7 @@ with col2:
 
 
 def create_category_bar_chart(data, y_field='Interaction Count', title='Empty'):
-    return alt.Chart(data).mark_bar().encode(
+    return alt.Chart(data).mark_bar(size=12).encode(
         x=alt.X('Slidetitle:N', title='Slide Title',
                 axis=alt.Axis(labelAngle=-45), sort=['Slideorder']  # Rotate x-axis labels to make them easier to read
         ),
@@ -80,17 +80,25 @@ def create_category_bar_chart(data, y_field='Interaction Count', title='Empty'):
     )
 
 def create_stacked_category_bar_chart(data, y_field='Interaction Count', title='Empty'):
-    return alt.Chart(data).mark_bar().encode(
+    orders = sorted(data['Answer Text'].dropna().unique().tolist())
+    return alt.Chart(data).mark_bar(size=10,
+                                    stroke='white',        # outline color (use '#0E1117' if your bg is dark and you want gaps)
+                                    strokeWidth=2,
+                                    strokeOpacity=1,
+                                    fillOpacity=0.7).encode(
         x=alt.X('Slidetitle:N', title='Slide Title',
-                axis=alt.Axis(labelAngle=-45), sort=['Slideorder']  # Rotate x-axis labels to make them easier to read
+                axis=alt.Axis(ticks=True, tickBand='center', labelAngle=-45), sort=['Slideorder'],  # Rotate x-axis labels to make them easier to read
         ),
         y=f'{y_field}:Q',  # count of interactions as the y-axis
-        xOffset='Answer Text:N',
-        color='Segment:N',
-        tooltip=['Segment:N', f'{y_field}:Q', 'Slidetitle:N', 'Answer Text:N']  # Show full slide title, interaction count, and slide order on hover
+        xOffset='Segment:N',
+        color=alt.Color('Answer Text:N', legend=None),
+        tooltip=['Segment:N', f'{y_field}:Q', 'Slidetitle:N', 'Answer Text:N'],  # Show full slide title, interaction count, and slide order on hover
+        stroke=alt.Stroke('Segment:N',     # outline color varies by offset
+                          sort=orders,
+                          scale=alt.Scale(scheme='category10'))
     ).properties(
-        title=title
-    )
+        height=380, width=2200, title=title
+    ).interactive(bind_y=False)
 
 
 def get_active_presentation_title():
