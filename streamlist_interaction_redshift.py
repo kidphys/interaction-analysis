@@ -30,10 +30,9 @@ else:
 
 df = get_interactions_of_presentation(presentation_id)
 
-t = df[['Slideorder', 'Slidetitle']].value_counts().reset_index().sort_values(by='Slideorder')
+t = df[['Slideorder', 'Slideid']].value_counts().reset_index().sort_values(by='Slideorder')
 t['#'] = range(1, len(t) + 1)
-df = df.merge(t[['#', 'Slideorder', 'Slidetitle']], on=['Slideorder', 'Slidetitle'], how='left').sort_values(by='Slideorder')
-df['#'] = df['#'].fillna(0).astype(int)
+df = df.merge(t[['#', 'Slideorder', 'Slideid']], on=['Slideorder', 'Slideid'], how='left').sort_values(by='Slideorder')
 df['# Slidetitle'] = df.apply(lambda x: f"#{x['#']} - {x['Slidetitle']}", axis=1)
 
 df['Chosen Pick Answer'] = df.apply(lambda x: extract_quiz_value(x['Slidetitle'], x['Slideoptions'], x['Vote']), axis=1)
@@ -134,10 +133,8 @@ interaction_count_data = interaction_count_data.groupby(['Slideid', 'Slidetitle'
 interaction_count_data = interaction_count_data.sort_values(by='Slideorder')
 
 
-st.write(interaction_count_data)
 with col1:
     chart1 = create_segment_line_chart(interaction_count_data, y_field='Interaction Count', title=get_active_presentation_title())
-    # chart1 = create_category_bar_chart(interaction_count_data, title=get_active_presentation_title())
     st.altair_chart(chart1, use_container_width=True)
 
 unique_audience_data = enrich_audience_with_category(selected_slide, df)
@@ -146,14 +143,14 @@ presentation_audience_count = unique_audience_data['audienceid'].nunique()
 
 unique_audience_per_segment = unique_audience_data.groupby(['Segment'])['audienceid'].nunique().reset_index().rename(columns={'audienceid': 'Segment Audience Count'})
 
-unique_audience_data = unique_audience_data.groupby(['Slideid', 'Slidetitle', '# Slidetitle', 'Slideorder', 'Segment'])['audienceid'].nunique().reset_index().rename(columns={'audienceid': 'Audience Count'})
+unique_audience_data = unique_audience_data.groupby(['#', 'Slideid', 'Slidetitle', '# Slidetitle', 'Slideorder', 'Segment'])['audienceid'].nunique().reset_index().rename(columns={'audienceid': 'Audience Count'})
 unique_audience_data = unique_audience_data.sort_values(by='Slideorder')
 
 unique_audience_data = unique_audience_data.merge(unique_audience_per_segment, on='Segment', how='left')
 unique_audience_data['Engagement Rate'] = unique_audience_data['Audience Count'] / unique_audience_data['Segment Audience Count']
-st.write(unique_audience_data)
 
 unique_audience_data['Percent of engaged audience'] = unique_audience_data['Audience Count'] / presentation_audience_count * 100
+unique_audience_data = unique_audience_data.sort_values(by='Slideorder')
 y_field = 'Percent of engaged audience'
 
 chart2 = create_segment_line_chart(unique_audience_data, y_field='Engagement Rate', title=get_active_presentation_title())
@@ -161,4 +158,7 @@ chart2 = create_segment_line_chart(unique_audience_data, y_field='Engagement Rat
 with col1:
     st.altair_chart(chart2, use_container_width=True)
 
-st.write(unique_audience_data[['# Slidetitle', 'Engagement Rate', 'Segment', 'Audience Count', 'Segment Audience Count']])
+st.subheader("Detailed Segment Data")
+st.write(
+    unique_audience_data[['# Slidetitle', '#', 'Slideorder', 'Engagement Rate', 'Segment', 'Audience Count', 'Segment Audience Count']]
+    )
