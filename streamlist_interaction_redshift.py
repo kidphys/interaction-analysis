@@ -193,7 +193,7 @@ points_df = enrich_points_with_audience_segment(selected_slide, df, points_df)
 points_df = points_df.dropna()
 points_df = pd.merge(points_df, all_slides_df, on=['Slideid'], how='left')
 points_df['# Slidetitle'] = points_df.apply(lambda x: f"#{x['Index']} - {x['Slidetitle']}", axis=1)
-points_df = points_df.groupby(['Segment', 'Slideid', 'Index', 'Slidetitle', '# Slidetitle']).agg({'Earned points': 'mean', 'Bonus points': 'mean'}).reset_index()
+points_df = points_df.groupby(['Segment', 'Slideid', 'Index', 'Slidetitle', '# Slidetitle', 'Slidetypenormalized']).agg({'Earned points': 'mean', 'Bonus points': 'mean'}).reset_index()
 points_df = points_df.sort_values(by='Index')
 chart3 = create_segment_line_chart(points_df, y_field='Earned points', title='Average earned points per slide')
 with col1:
