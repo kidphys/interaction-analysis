@@ -140,7 +140,14 @@ def create_stacked_category_bar_chart(data, y_field='Interaction Count', title='
     ).interact
 
 
-def create_segment_line_chart(data, y_field='Interaction Count', title='Empty'):
+def create_segment_line_chart(data, y_field='Interaction Count', title='Empty', type='number'):
+    if type == 'percent':
+        y_field_tool_tip = alt.Tooltip(f'{y_field}:Q', format='.2~%')
+    elif type == 'number':
+        y_field_tool_tip = alt.Tooltip(f'{y_field}:Q', format='.2~f')
+    else:
+        raise ValueError(f'Invalid type: {type}')
+
     return alt.Chart(data).mark_line(
             size=2,
             point=alt.OverlayMarkDef(filled=True, size=80)
@@ -151,7 +158,7 @@ def create_segment_line_chart(data, y_field='Interaction Count', title='Empty'):
         ),
         y=f'{y_field}:Q',  # count of interactions as the y-axis
         color='Segment:N',
-        tooltip=['Segment:N', alt.Tooltip(f'{y_field}:Q', format='.2%'), 'Slidetitle:N', alt.Tooltip('Slidetypenormalized:N', title='Slide Type')]
+        tooltip=['Segment:N', y_field_tool_tip, 'Slidetitle:N', alt.Tooltip('Slidetypenormalized:N', title='Slide Type')]
     ).properties(
         title=title
     )
@@ -182,7 +189,7 @@ unique_audience_data['Percent of engaged audience'] = unique_audience_data['Audi
 unique_audience_data = unique_audience_data.sort_values(by='Slideorder')
 y_field = 'Percent of engaged audience'
 
-chart2 = create_segment_line_chart(unique_audience_data, y_field='Engagement Rate', title="Engagement rate (no. audience who have submissions/no. audiences in segment)")
+chart2 = create_segment_line_chart(unique_audience_data, y_field='Engagement Rate', type='percent', title="Engagement rate (no. audience who have submissions/no. audiences in segment)")
 
 with col1:
     st.altair_chart(chart2, use_container_width=True)
