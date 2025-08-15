@@ -1,25 +1,52 @@
 import ast
 import json
 from select import poll
+from time import strftime
 import streamlit as st
 import pandas as pd
 import numpy as np
 import altair as alt
 
-from warehouse_repo import enrich_audience_with_category, enrich_points_with_audience_segment, extract_poll_value, extract_quiz_value, extract_short_answer, get_points_of_presentation, map_point_with_audience_segment
+from warehouse_repo import enrich_audience_with_category, enrich_points_with_audience_segment, extract_poll_value, extract_quiz_value, extract_short_answer, get_participant_count_per_day, get_points_of_presentation
+from warehouse_repo import get_participant_count_per_week_v2
 from warehouse_repo import get_interactions_of_presentation, get_presentations_of_user
 
-kiotviet_user_id = 259137
-presentation_df = get_presentations_of_user(kiotviet_user_id)
+
+top_container = st.container()
+bottom_container = st.container()
+
+# KIOTVIET_USER_ID = 259137
+params = st.query_params
+user_id = params.get('user_id', 1918789)
+presentation_df = get_presentations_of_user(user_id)
+presentation_df = presentation_df.sort_values(by='createdat', ascending=False)
 
 st.set_page_config(layout="wide")
-# Create a container
-top_container = st.container()
-col1, col2 = top_container.columns([3, 1])
+
+
+with top_container:
+    audience_count_per_day_df = get_participant_count_per_week_v2(user_id, weeks=8)
+    audience_count_per_day_df['Previous 4 weeks'] = audience_count_per_day_df['unique_audience'].shift(4).fillna(0)
+    audience_count_per_day_df.rename(columns={'unique_audience': 'Current'}, inplace=True)
+    # st.write(audience_count_per_day_df)
+    data = audience_count_per_day_df.melt(id_vars=['week_start'], var_name='type', value_name='value')
+    chart = alt.Chart(data).mark_line(size=2,
+                point=alt.OverlayMarkDef(filled=True, size=80)
+                                      ).encode(
+        x=alt.X('week_start:T', title='Week Start'),
+        y=alt.Y('value:Q', title='Audience Count'),
+        color=alt.Color('type:N', title='Type')
+    ).properties(
+        title='Audience Count per Week'
+    )
+    st.altair_chart(chart, use_container_width=True)
+
+
+col1, col2 = bottom_container.columns([3, 1])
 
 with col2:
     presentations = presentation_df.to_dict(orient='records')
-    default_idx = 28
+    default_idx = 1
     selected_presentation = st.selectbox('Select presentation:', list(presentations), format_func=lambda x: x['name'], index=default_idx)
     st.session_state.selected_presentation = selected_presentation
 
@@ -129,6 +156,7 @@ def create_segment_line_chart(data, y_field='Interaction Count', title='Empty'):
     ).properties(
         title=title
     )
+
 
 
 interaction_count_data = enrich_audience_with_category(selected_slide, df)

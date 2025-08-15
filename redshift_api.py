@@ -16,7 +16,7 @@ REDSHIFT_USER = os.getenv("REDSHIFT_USER")
 REDSHIFT_PASSWORD = os.getenv("REDSHIFT_PASSWORD")
 REDSHIFT_HOST = os.getenv("REDSHIFT_HOST")
 
-@st.cache_resource
+@st.cache_resource(ttl='60m')
 def create_engine():
     # build the sqlalchemy URL
     url = URL.create(

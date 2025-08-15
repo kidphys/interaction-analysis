@@ -5,9 +5,9 @@ import ast
 
 
 def get_presentations_of_user(user_id: str):
-    sql = f'SELECT "id", "userid", "name" FROM aha_report_x.dim_presentations WHERE userid = {user_id};'
+    sql = f'SELECT "id", "userid", "name", "createdat" FROM aha_report_x.dim_presentations WHERE userid = {user_id};'
     rows = execute(sql)
-    return pd.DataFrame(rows, columns=['id', 'userid', 'name'])
+    return pd.DataFrame(rows, columns=['id', 'userid', 'name', 'createdat'])
 
 
 def get_interactions_of_presentation(presentation_id: str):
@@ -25,6 +25,7 @@ def get_interactions_of_presentation(presentation_id: str):
         "Vote",
         "poll_vote",
         "Title",
+        "Createdat"
     ]
     cols_str = [f'"{col}"' for col in cols]
     sql = f'SELECT {", ".join(cols_str)} FROM aha_report_x.mart_presentation_interactions WHERE presentationid = {presentation_id};'
@@ -44,6 +45,104 @@ def get_points_of_presentation(presentation_id: str):
     sql = f'SELECT {", ".join(cols_str)} FROM aha_report_x.fct_points WHERE presentationid = {presentation_id};'
     rows = execute(sql)
     return pd.DataFrame(rows, columns=cols)
+
+
+def get_participant_count_per_day(user_id: str, days: int = 60):
+    """
+    Temp function, may be useful for busy users. For now we use weeks since there is too little data.
+    """
+    sql = f"""
+    WITH params AS (
+    SELECT CAST(CONVERT_TIMEZONE('UTC','Asia/Bangkok', GETDATE()) AS date) AS local_today
+    ),
+    nums AS (  -- 0..59 without unsupported functions
+    SELECT ones.n + 10*tens.n AS n
+    FROM (SELECT 0 n UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4
+            UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9) ones
+    CROSS JOIN (SELECT 0 n UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4
+                UNION ALL SELECT 5) tens
+    ),
+    days AS (
+    SELECT DATEADD(day, -n, p.local_today) AS event_day
+    FROM nums
+    CROSS JOIN params p
+    WHERE n BETWEEN 0 AND {days - 1}
+    ),
+    agg AS (
+    SELECT
+        CAST(CONVERT_TIMEZONE('UTC','Asia/Bangkok', "Createdat") AS date) AS event_day,
+        COUNT(DISTINCT audienceid) AS unique_audience
+    FROM aha_report_x.mart_presentation_interactions
+    CROSS JOIN params p
+    WHERE userid = {user_id}
+        AND CAST(CONVERT_TIMEZONE('UTC','Asia/Bangkok', "Createdat") AS date)
+            BETWEEN DATEADD(day, -{days - 1}, p.local_today) AND p.local_today
+    GROUP BY 1
+    )
+    SELECT d.event_day,
+        COALESCE(a.unique_audience, 0) AS unique_audience
+    FROM days d
+    LEFT JOIN agg a USING (event_day)
+    ORDER BY d.event_day;
+    """
+    rows = execute(sql)
+    return pd.DataFrame(rows, columns=['event_day', 'unique_audience'])
+
+
+
+def get_participant_count_per_week_raw(user_id: int, weeks: int = 12):
+    sql = f"""
+    WITH params AS (
+      SELECT CONVERT_TIMEZONE('UTC','Asia/Bangkok', GETDATE())::date AS local_today
+    ),
+    anchor AS (
+      SELECT
+        DATE_TRUNC('week', local_today)::date                                           AS week_start_today,
+        DATEADD(week, CAST(-({weeks}-1) AS int), DATE_TRUNC('week', local_today))::date AS lower_bound,
+        DATEADD(week, 1, DATE_TRUNC('week', local_today))::date                         AS next_week_start
+      FROM params
+    )
+    SELECT
+      DATE_TRUNC('week', CONVERT_TIMEZONE('UTC','Asia/Bangkok', "Createdat"))::date AS week_start,
+      COUNT(DISTINCT audienceid) AS unique_audience
+    FROM aha_report_x.mart_presentation_interactions, anchor a
+    WHERE userid = {user_id}
+      AND CONVERT_TIMEZONE('UTC','Asia/Bangkok', "Createdat")::date >= a.lower_bound
+      AND CONVERT_TIMEZONE('UTC','Asia/Bangkok', "Createdat")::date <  a.next_week_start
+    GROUP BY 1
+    ORDER BY 1;
+    """
+    rows = execute(sql)
+    return pd.DataFrame(rows, columns=['week_start', 'unique_audience'])
+
+import datetime as dt
+
+def fill_missing_weeks(df: pd.DataFrame, weeks: int = 12, tz: str = 'Asia/Bangkok'):
+    # Ensure schema
+    if df.empty:
+        df = pd.DataFrame(columns=['week_start', 'unique_audience'])
+    df = df.copy()
+    df['week_start'] = pd.to_datetime(df['week_start']).dt.date  # -> python date
+
+    # Monday-start of current local week as a python date
+    now_local = pd.Timestamp.now(tz=tz)
+    week_start_today = (now_local - pd.Timedelta(days=now_local.weekday())).date()
+
+    # Build expected Monday starts (no extra .date() here)
+    expected = [week_start_today - dt.timedelta(weeks=i) for i in range(weeks)]
+    expected.sort()  # ascending
+
+    spine = pd.DataFrame({'week_start': expected})
+    out = spine.merge(df, on='week_start', how='left')
+    out['unique_audience'] = out['unique_audience'].fillna(0).astype(int)
+    return out
+
+
+def get_participant_count_per_week_v2(user_id: int, weeks: int = 12):
+    raw = get_participant_count_per_week_raw(user_id=user_id, weeks=weeks)
+    filled = fill_missing_weeks(raw, weeks=weeks)  # adds zero rows for missing weeks
+    return filled
+
 
 
 def extract_quiz_value(slide_title, slide_options, vote):
