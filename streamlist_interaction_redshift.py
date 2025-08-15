@@ -6,7 +6,7 @@ import pandas as pd
 import numpy as np
 import altair as alt
 
-from warehouse_repo import enrich_audience_with_category, extract_poll_value, extract_quiz_value, extract_short_answer
+from warehouse_repo import enrich_audience_with_category, enrich_points_with_audience_segment, extract_poll_value, extract_quiz_value, extract_short_answer, get_points_of_presentation, map_point_with_audience_segment
 from warehouse_repo import get_interactions_of_presentation, get_presentations_of_user
 
 kiotviet_user_id = 259137
@@ -125,16 +125,15 @@ def create_segment_line_chart(data, y_field='Interaction Count', title='Empty'):
         ),
         y=f'{y_field}:Q',  # count of interactions as the y-axis
         color='Segment:N',
-        tooltip=['Segment:N', alt.Tooltip(f'{y_field}:Q', format='.2%'), 'Slidetitle:N']  # Show full slide title, interaction count, and slide order on hover
+        tooltip=['Segment:N', alt.Tooltip(f'{y_field}:Q', format='.2%'), 'Slidetitle:N', alt.Tooltip('Slidetypenormalized:N', title='Slide Type')]
     ).properties(
         title=title
     )
 
 
 interaction_count_data = enrich_audience_with_category(selected_slide, df)
-interaction_count_data = interaction_count_data.groupby(['Slideid', 'Slidetitle', '# Slidetitle', 'Slideorder', 'Segment']).size().reset_index().rename(columns={0: 'Interaction Count'})
+interaction_count_data = interaction_count_data.groupby(['Slideid', 'Slidetitle', '# Slidetitle', 'Slideorder', 'Segment', 'Slidetypenormalized']).size().reset_index().rename(columns={0: 'Interaction Count'})
 interaction_count_data = interaction_count_data.sort_values(by='Slideorder')
-
 
 with col1:
     chart1 = create_segment_line_chart(interaction_count_data, y_field='Interaction Count', title='Interaction count per slide')
@@ -146,7 +145,7 @@ presentation_audience_count = unique_audience_data['audienceid'].nunique()
 
 unique_audience_per_segment = unique_audience_data.groupby(['Segment'])['audienceid'].nunique().reset_index().rename(columns={'audienceid': 'Segment Audience Count'})
 
-unique_audience_data = unique_audience_data.groupby(['#', 'Slideid', 'Slidetitle', '# Slidetitle', 'Slideorder', 'Segment'])['audienceid'].nunique().reset_index().rename(columns={'audienceid': 'Audience Count'})
+unique_audience_data = unique_audience_data.groupby(['#', 'Slideid', 'Slidetitle', '# Slidetitle', 'Slideorder', 'Segment', 'Slidetypenormalized'])['audienceid'].nunique().reset_index().rename(columns={'audienceid': 'Audience Count'})
 unique_audience_data = unique_audience_data.sort_values(by='Slideorder')
 
 unique_audience_data = unique_audience_data.merge(unique_audience_per_segment, on='Segment', how='left')
@@ -161,7 +160,14 @@ chart2 = create_segment_line_chart(unique_audience_data, y_field='Engagement Rat
 with col1:
     st.altair_chart(chart2, use_container_width=True)
 
-st.subheader("Detailed Segment Data")
-st.write(
-    unique_audience_data[['# Slidetitle', '#', 'Slideorder', 'Engagement Rate', 'Segment', 'Audience Count', 'Segment Audience Count']]
-    )
+points_df = get_points_of_presentation(presentation_id)
+points_df = points_df.rename(columns={'Earned_points': 'Earned points', 'Bonus_points': 'Bonus points'})
+points_df = enrich_points_with_audience_segment(selected_slide, df, points_df)
+points_df = points_df.dropna()
+points_df = pd.merge(points_df, all_slides_df, on=['Slideid'], how='left')
+points_df['# Slidetitle'] = points_df.apply(lambda x: f"#{x['Index']} - {x['Slidetitle']}", axis=1)
+points_df = points_df.groupby(['Segment', 'Slideid', 'Index', 'Slidetitle', '# Slidetitle']).agg({'Earned points': 'mean', 'Bonus points': 'mean'}).reset_index()
+points_df = points_df.sort_values(by='Index')
+chart3 = create_segment_line_chart(points_df, y_field='Earned points', title='Average earned points per slide')
+with col1:
+    st.altair_chart(chart3, use_container_width=True)
