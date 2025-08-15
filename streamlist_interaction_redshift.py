@@ -28,7 +28,6 @@ with top_container:
     audience_count_per_day_df = get_participant_count_per_week_v2(user_id, weeks=8)
     audience_count_per_day_df['Previous 4 weeks'] = audience_count_per_day_df['unique_audience'].shift(4).fillna(0)
     audience_count_per_day_df.rename(columns={'unique_audience': 'Current'}, inplace=True)
-    # st.write(audience_count_per_day_df)
     data = audience_count_per_day_df.melt(id_vars=['week_start'], var_name='type', value_name='value')
     chart = alt.Chart(data).mark_line(size=2,
                 point=alt.OverlayMarkDef(filled=True, size=80)
