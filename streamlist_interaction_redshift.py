@@ -33,11 +33,20 @@ with top_container:
                 point=alt.OverlayMarkDef(filled=True, size=80)
                                       ).encode(
         x=alt.X('week_start:T', title='Week Start'),
-        y=alt.Y('value:Q', title='Audience Count'),
+        y=alt.Y('value:Q', title='Participant Count'),
         color=alt.Color('type:N', title='Type')
     ).properties(
-        title='Audience Count per Week'
+        title='Participant Count per Week'
     )
+
+    # Display technical options on chart
+    chart = chart.copy()
+    chart["usermeta"] = {
+        "embedOptions": {
+            "actions": {"export": True, "source": False, "compiled": False, "editor": False}
+        }
+    }
+
     st.altair_chart(chart, use_container_width=True)
 
 
@@ -148,7 +157,7 @@ def create_segment_line_chart(data, y_field='Interaction Count', title='Empty', 
     else:
         raise ValueError(f'Invalid type: {type}')
 
-    return alt.Chart(data).mark_line(
+    chart = alt.Chart(data).mark_line(
             size=2,
             point=alt.OverlayMarkDef(filled=True, size=80)
             ).encode(
@@ -162,7 +171,14 @@ def create_segment_line_chart(data, y_field='Interaction Count', title='Empty', 
     ).properties(
         title=title
     )
-
+        # Display technical options on chart
+    chart = chart.copy()
+    chart["usermeta"] = {
+        "embedOptions": {
+            "actions": {"export": True, "source": False, "compiled": False, "editor": False}
+        }
+    }
+    return chart
 
 
 interaction_count_data = enrich_audience_with_category(selected_slide, df)
