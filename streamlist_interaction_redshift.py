@@ -23,10 +23,18 @@ with col2:
     selected_presentation = st.selectbox('Select presentation:', list(presentations), format_func=lambda x: x['name'], index=default_idx)
     st.session_state.selected_presentation = selected_presentation
 
+
 if st.session_state.selected_presentation:
     presentation_id = st.session_state.selected_presentation['id']
 else:
     presentation_id = 7021758
+
+def get_active_presentation_title():
+    presentation_id = st.session_state.selected_presentation['id']
+    return presentation_df[presentation_df['id'] == presentation_id]['name'].iloc[0]
+
+with col1:
+    st.subheader(f'Prez Title: {get_active_presentation_title()}')
 
 df = get_interactions_of_presentation(presentation_id)
 
@@ -123,18 +131,13 @@ def create_segment_line_chart(data, y_field='Interaction Count', title='Empty'):
     )
 
 
-def get_active_presentation_title():
-    presentation_id = st.session_state.selected_presentation['id']
-    return presentation_df[presentation_df['id'] == presentation_id]['name'].iloc[0]
-
-
 interaction_count_data = enrich_audience_with_category(selected_slide, df)
 interaction_count_data = interaction_count_data.groupby(['Slideid', 'Slidetitle', '# Slidetitle', 'Slideorder', 'Segment']).size().reset_index().rename(columns={0: 'Interaction Count'})
 interaction_count_data = interaction_count_data.sort_values(by='Slideorder')
 
 
 with col1:
-    chart1 = create_segment_line_chart(interaction_count_data, y_field='Interaction Count', title=get_active_presentation_title())
+    chart1 = create_segment_line_chart(interaction_count_data, y_field='Interaction Count', title='Interaction count per slide')
     st.altair_chart(chart1, use_container_width=True)
 
 unique_audience_data = enrich_audience_with_category(selected_slide, df)
@@ -153,7 +156,7 @@ unique_audience_data['Percent of engaged audience'] = unique_audience_data['Audi
 unique_audience_data = unique_audience_data.sort_values(by='Slideorder')
 y_field = 'Percent of engaged audience'
 
-chart2 = create_segment_line_chart(unique_audience_data, y_field='Engagement Rate', title=get_active_presentation_title())
+chart2 = create_segment_line_chart(unique_audience_data, y_field='Engagement Rate', title="Engagement rate (no. audience who have submissions/no. audiences in segment)")
 
 with col1:
     st.altair_chart(chart2, use_container_width=True)
