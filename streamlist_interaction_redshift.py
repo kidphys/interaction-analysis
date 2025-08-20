@@ -2,18 +2,23 @@ import ast
 import json
 from select import poll
 from time import strftime
+from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
 import streamlit as st
 import pandas as pd
 import numpy as np
 import altair as alt
 
-from warehouse_repo import enrich_audience_with_category, enrich_points_with_audience_segment, extract_poll_value, extract_quiz_value, extract_short_answer, get_participant_count_per_day, get_points_of_presentation
+from warehouse_repo import enrich_audience_with_category, enrich_points_with_audience_segment, extract_poll_value, extract_quiz_value, extract_short_answer, get_avg_point_per_question, get_participant_count_per_day, get_points_of_presentation, get_wrong_often_questions
 from warehouse_repo import get_participant_count_per_week_v2
 from warehouse_repo import get_interactions_of_presentation, get_presentations_of_user
 
 
-top_container = st.container()
-bottom_container = st.container()
+
+overview_tab, presentation_tab = st.tabs(["Overview", "Presentation Deep Dive"])
+with overview_tab:
+    top_container = st.container()
+with presentation_tab:
+    bottom_container = st.container()
 
 # KIOTVIET_USER_ID = 259137
 params = st.query_params
@@ -24,7 +29,21 @@ presentation_df = presentation_df.sort_values(by='createdat', ascending=False)
 st.set_page_config(layout="wide")
 
 
-with top_container:
+def show_df_using_ag_grid(df):
+    gb = GridOptionsBuilder.from_dataframe(df)
+    gb.configure_pagination(paginationAutoPageSize=False, paginationPageSize=10)
+    gb.configure_default_column(resizable=True, sortable=True, filter=True)
+    grid_options = gb.build()
+
+    AgGrid(
+        df,
+        gridOptions=grid_options,
+        update_mode=GridUpdateMode.NO_UPDATE,
+        enable_enterprise_modules=False,
+        theme="streamlit",
+        fit_columns_on_grid_load=True,
+    )
+with overview_tab:
     audience_count_per_day_df = get_participant_count_per_week_v2(user_id, weeks=8)
     audience_count_per_day_df['Previous 4 weeks'] = audience_count_per_day_df['unique_audience'].shift(4).fillna(0)
     audience_count_per_day_df.rename(columns={'unique_audience': 'Current'}, inplace=True)
@@ -49,6 +68,14 @@ with top_container:
 
     st.altair_chart(chart, use_container_width=True)
 
+    avg_point_per_question_df = get_avg_point_per_question(user_id)
+    avg_point_per_question_df['Avg Point'] = avg_point_per_question_df['Avg Point'].round(2)
+    st.subheader('Low Score Questions')
+    show_df_using_ag_grid(avg_point_per_question_df)
+
+    st.subheader('Commonly Wrong Questions')
+    wrong_df = get_wrong_often_questions(user_id)
+    show_df_using_ag_grid(wrong_df)
 
 col1, col2 = bottom_container.columns([3, 1])
 
@@ -102,7 +129,7 @@ df['Slidetitle'] = df.apply(lambda x: x['Slidetitle'] if x['Slidetitle'] != 'nan
 all_slides_df = df.groupby(['Slideid', 'Slidetitle', 'Slidetypenormalized', 'Slideorder']).size().reset_index().sort_values(by='Slideorder')[['Slideid', 'Slidetitle', 'Slidetypenormalized']]
 all_slides_df['Index'] = range(1, len(all_slides_df) + 1)
 all_slide_titles = all_slides_df.to_dict('records')
-poll_slide_titles = all_slides_df[all_slides_df['Slidetypenormalized'] == 'Poll'][['Slideid', 'Slidetitle', 'Slidetypenormalized']].to_dict('records')
+poll_slide_titles = all_slides_df[all_slides_df['Slidetypenormalized'].isin(['Poll', 'Open Ended'])][['Slideid', 'Slidetitle', 'Slidetypenormalized']].to_dict('records')
 quiz_slide_titles = all_slides_df[all_slides_df['Slidetypenormalized'] == 'Pick Answer'][['Slideid', 'Slidetitle', 'Slidetypenormalized']].to_dict('records')
 all_slide_titles = [{'Slideid': 'All', 'Slidetitle': 'All', 'Slidetypenormalized': '', 'Index': 0}] + all_slide_titles
 

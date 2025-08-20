@@ -179,7 +179,11 @@ def get_audience_segment(selected_slide, df, audience_id_field):
     slide_type = df[df['Slideid'] == selected_slide['Slideid']]['Slidetypenormalized'].iloc[0]
     if slide_type == 'Poll':
         audience_df = df[df['Slideid'] == selected_slide['Slideid']][[audience_id_field, 'Chosen Poll']]
-        audience_df['Segement'] = audience_df['Chosen Poll'].fillna('No Category')
+        audience_df['Segment'] = audience_df['Chosen Poll'].fillna('No Category')
+        return audience_df
+    if slide_type == 'Open Ended':
+        audience_df = df[df['Slideid'] == selected_slide['Slideid']][[audience_id_field, 'Chosen Short Answer']]
+        audience_df['Segment'] = audience_df['Chosen Short Answer'].fillna('No Category')
         return audience_df
     if slide_type == 'Pick Answer':
         audience_df = df[df['Slideid'] == selected_slide['Slideid']][[audience_id_field, 'correct']]
@@ -219,3 +223,44 @@ def enrich_audience_with_category(selected_slide, df):
         data = df.copy()
         data['Segment'] = 'All'
         return data
+
+
+def get_avg_point_per_question(user_id: int):
+    sql = f"""
+    SELECT
+    dp.name as presentation_title,
+    ds.title AS slide_title,
+    AVG(f.earned_points) AS avg_point
+        FROM aha_report_x.fct_points f
+        JOIN aha_report_x.dim_presentations dp
+            ON f.presentationid = dp.id
+        JOIN aha_report_x.dim_slides ds
+            ON f.slideid = ds.id
+        WHERE dp.userid = {user_id}
+        AND f.createdat >= dateadd(day, -60, getdate())
+        GROUP BY ds.title, dp.name
+        ORDER BY avg_point ASC;
+    """
+    rows = execute(sql)
+    return pd.DataFrame(rows, columns=['Presentation', 'Question', 'Avg Point'])
+
+
+def get_wrong_often_questions(user_id: int):
+    sql = f"""
+    SELECT
+    dp.name as presentation_title,
+    ds.title AS slide_title,
+    COUNT(DISTINCT f.audienceid) AS avg_point
+        FROM aha_report_x.fct_points f
+        JOIN aha_report_x.dim_presentations dp
+            ON f.presentationid = dp.id
+        JOIN aha_report_x.dim_slides ds
+            ON f.slideid = ds.id
+        WHERE dp.userid = {user_id}
+        AND f.earned_points = 0
+        AND f.createdat >= dateadd(day, -60, getdate())
+        GROUP BY ds.title, dp.name
+        ORDER BY avg_point DESC;
+    """
+    rows = execute(sql)
+    return pd.DataFrame(rows, columns=['Presentation', 'Question', 'No participant who got this wrong'])
