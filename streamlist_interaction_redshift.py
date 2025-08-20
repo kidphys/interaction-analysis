@@ -44,29 +44,29 @@ def show_df_using_ag_grid(df):
         fit_columns_on_grid_load=True,
     )
 with overview_tab:
-    audience_count_per_day_df = get_participant_count_per_week_v2(user_id, weeks=8)
-    audience_count_per_day_df['Previous 4 weeks'] = audience_count_per_day_df['unique_audience'].shift(4).fillna(0)
-    audience_count_per_day_df.rename(columns={'unique_audience': 'Current'}, inplace=True)
-    data = audience_count_per_day_df.melt(id_vars=['week_start'], var_name='type', value_name='value')
-    chart = alt.Chart(data).mark_line(size=2,
-                point=alt.OverlayMarkDef(filled=True, size=80)
-                                      ).encode(
-        x=alt.X('week_start:T', title='Week Start'),
-        y=alt.Y('value:Q', title='Participant Count'),
-        color=alt.Color('type:N', title='Type')
-    ).properties(
-        title='Participant Count per Week'
-    )
+    # audience_count_per_day_df = get_participant_count_per_week_v2(user_id, weeks=8)
+    # audience_count_per_day_df['Previous 4 weeks'] = audience_count_per_day_df['unique_audience'].shift(4).fillna(0)
+    # audience_count_per_day_df.rename(columns={'unique_audience': 'Current'}, inplace=True)
+    # data = audience_count_per_day_df.melt(id_vars=['week_start'], var_name='type', value_name='value')
+    # chart = alt.Chart(data).mark_line(size=2,
+    #             point=alt.OverlayMarkDef(filled=True, size=80)
+    #                                   ).encode(
+    #     x=alt.X('week_start:T', title='Week Start'),
+    #     y=alt.Y('value:Q', title='Participant Count'),
+    #     color=alt.Color('type:N', title='Type')
+    # ).properties(
+    #     title='Participant Count per Week'
+    # )
 
-    # Display technical options on chart
-    chart = chart.copy()
-    chart["usermeta"] = {
-        "embedOptions": {
-            "actions": {"export": True, "source": False, "compiled": False, "editor": False}
-        }
-    }
+    # # Display technical options on chart
+    # chart = chart.copy()
+    # chart["usermeta"] = {
+    #     "embedOptions": {
+    #         "actions": {"export": True, "source": False, "compiled": False, "editor": False}
+    #     }
+    # }
 
-    st.altair_chart(chart, use_container_width=True)
+    # st.altair_chart(chart, use_container_width=True)
 
     st.subheader('Commonly Wrong Questions')
     wrong_df = get_wrong_often_questions(user_id)
