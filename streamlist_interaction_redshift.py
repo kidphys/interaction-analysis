@@ -68,14 +68,15 @@ with overview_tab:
 
     st.altair_chart(chart, use_container_width=True)
 
+    st.subheader('Commonly Wrong Questions')
+    wrong_df = get_wrong_often_questions(user_id)
+    show_df_using_ag_grid(wrong_df)
+
     avg_point_per_question_df = get_avg_point_per_question(user_id)
     avg_point_per_question_df['Avg Point'] = avg_point_per_question_df['Avg Point'].round(2)
     st.subheader('Low Score Questions')
     show_df_using_ag_grid(avg_point_per_question_df)
 
-    st.subheader('Commonly Wrong Questions')
-    wrong_df = get_wrong_often_questions(user_id)
-    show_df_using_ag_grid(wrong_df)
 
 col1, col2 = bottom_container.columns([3, 1])
 
