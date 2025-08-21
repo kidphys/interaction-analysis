@@ -14,7 +14,7 @@ from warehouse_repo import get_interactions_of_presentation, get_presentations_o
 
 
 
-overview_tab, presentation_tab = st.tabs(["Overview", "Presentation Deep Dive"])
+overview_tab, presentation_tab = st.tabs(["Question Insights", "Deep Dive"])
 with overview_tab:
     top_container = st.container()
 with presentation_tab:
@@ -44,38 +44,40 @@ def show_df_using_ag_grid(df):
         fit_columns_on_grid_load=True,
     )
 with overview_tab:
-    # audience_count_per_day_df = get_participant_count_per_week_v2(user_id, weeks=8)
-    # audience_count_per_day_df['Previous 4 weeks'] = audience_count_per_day_df['unique_audience'].shift(4).fillna(0)
-    # audience_count_per_day_df.rename(columns={'unique_audience': 'Current'}, inplace=True)
-    # data = audience_count_per_day_df.melt(id_vars=['week_start'], var_name='type', value_name='value')
-    # chart = alt.Chart(data).mark_line(size=2,
-    #             point=alt.OverlayMarkDef(filled=True, size=80)
-    #                                   ).encode(
-    #     x=alt.X('week_start:T', title='Week Start'),
-    #     y=alt.Y('value:Q', title='Participant Count'),
-    #     color=alt.Color('type:N', title='Type')
-    # ).properties(
-    #     title='Participant Count per Week'
-    # )
-
-    # # Display technical options on chart
-    # chart = chart.copy()
-    # chart["usermeta"] = {
-    #     "embedOptions": {
-    #         "actions": {"export": True, "source": False, "compiled": False, "editor": False}
-    #     }
-    # }
-
-    # st.altair_chart(chart, use_container_width=True)
-
-    st.subheader('Commonly Wrong Questions')
+    st.subheader('Commonly Wrong Questions In The Last 3 Months')
     wrong_df = get_wrong_often_questions(user_id)
     show_df_using_ag_grid(wrong_df)
 
     avg_point_per_question_df = get_avg_point_per_question(user_id)
     avg_point_per_question_df['Avg Point'] = avg_point_per_question_df['Avg Point'].round(2)
-    st.subheader('Low Score Questions')
+    st.subheader('Low Score Questions In The Last 3 Months')
     show_df_using_ag_grid(avg_point_per_question_df)
+
+
+with bottom_container:
+    audience_count_per_day_df = get_participant_count_per_week_v2(user_id, weeks=8)
+    audience_count_per_day_df['Previous 4 weeks'] = audience_count_per_day_df['unique_audience'].shift(4).fillna(0)
+    audience_count_per_day_df.rename(columns={'unique_audience': 'Current'}, inplace=True)
+    data = audience_count_per_day_df.melt(id_vars=['week_start'], var_name='type', value_name='value')
+    chart = alt.Chart(data).mark_line(size=2,
+                point=alt.OverlayMarkDef(filled=True, size=80)
+                                      ).encode(
+        x=alt.X('week_start:T', title='Week Start'),
+        y=alt.Y('value:Q', title='Participant Count'),
+        color=alt.Color('type:N', title='Type')
+    ).properties(
+        title='Participant Count per Week'
+    )
+
+    # Display technical options on chart
+    chart = chart.copy()
+    chart["usermeta"] = {
+        "embedOptions": {
+            "actions": {"export": True, "source": False, "compiled": False, "editor": False}
+        }
+    }
+
+    st.altair_chart(chart, use_container_width=True)
 
 
 col1, col2 = bottom_container.columns([3, 1])
