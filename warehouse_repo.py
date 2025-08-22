@@ -269,7 +269,7 @@ def get_wrong_often_questions(user_id: int):
 def get_participant_stats(user_id: int):
     sql = f"""
     with answer_stats as (
-    select AVG(earned_points) as avg_point, COUNT(id) as answer_count, audience_name from aha_report_x.mart_points
+    select audience_name, AVG(earned_points) as avg_point, COUNT(id) as answer_count from aha_report_x.mart_points
     where userid = {user_id}
     group by audience_name
     order by avg_point ASC
@@ -277,7 +277,7 @@ def get_participant_stats(user_id: int):
     select * from answer_stats where answer_count > 10
     """
     rows = execute(sql)
-    return pd.DataFrame(rows, columns=['Avg Point', 'Answer Count', 'Audience Name'])
+    return pd.DataFrame(rows, columns=['Participant Name', 'Avg Point', 'Answer Count' ])
 
 
 def get_participant_correct_stats(user_id: int):
