@@ -59,7 +59,8 @@ with participant_tab:
     participant_stats_df = get_participant_stats(user_id)
     participant_stats_df['Avg Point'] = participant_stats_df['Avg Point'].round(2)
     st.subheader('Participant With Lowest Score')
-    show_df_using_ag_grid(participant_stats_df, page_size=20)
+
+    show_df_using_ag_grid(participant_stats_df[['Participant Name', 'Avg Point', 'Answer Count']], page_size=20)
 
     participant_correct_stats_df = get_participant_correct_stats(user_id)
     st.subheader('Participant With Lowest Correct Percentage')
@@ -68,7 +69,7 @@ with participant_tab:
 
 
 with bottom_container:
-    audience_count_per_day_df = get_participant_count_per_week_v2(user_id, weeks=8)
+    audience_count_per_day_df = get_participant_count_per_week_v2(user_id, weeks=12)
     audience_count_per_day_df['Previous 4 weeks'] = audience_count_per_day_df['unique_audience'].shift(4).fillna(0)
     audience_count_per_day_df.rename(columns={'unique_audience': 'Current'}, inplace=True)
     data = audience_count_per_day_df.melt(id_vars=['week_start'], var_name='type', value_name='value')

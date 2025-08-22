@@ -110,7 +110,8 @@ def get_participant_count_per_week_raw(user_id: int, weeks: int = 12):
       AND CONVERT_TIMEZONE('UTC','Asia/Bangkok', "Createdat")::date >= a.lower_bound
       AND CONVERT_TIMEZONE('UTC','Asia/Bangkok', "Createdat")::date <  a.next_week_start
     GROUP BY 1
-    ORDER BY 1;
+    ORDER BY 1
+    LIMIT 1000;
     """
     rows = execute(sql)
     return pd.DataFrame(rows, columns=['week_start', 'unique_audience'])
@@ -239,10 +240,13 @@ def get_avg_point_per_question(user_id: int):
         WHERE dp.userid = {user_id}
         AND f.createdat >= dateadd(day, -60, getdate())
         GROUP BY ds.title, dp.name
-        ORDER BY avg_point ASC;
+        ORDER BY avg_point ASC
+        LIMIT 1000;
     """
     rows = execute(sql)
-    return pd.DataFrame(rows, columns=['Presentation', 'Question', 'Avg Point'])
+    df = pd.DataFrame(rows, columns=['Presentation', 'Question', 'Avg Point'])
+    df['Avg Point'] = df['Avg Point'].astype(float)
+    return df
 
 
 def get_wrong_often_questions(user_id: int):
@@ -260,7 +264,8 @@ def get_wrong_often_questions(user_id: int):
         AND f.earned_points = 0
         AND f.createdat >= dateadd(day, -60, getdate())
         GROUP BY ds.title, dp.name
-        ORDER BY avg_point DESC;
+        ORDER BY avg_point DESC
+        LIMIT 1000;
     """
     rows = execute(sql)
     return pd.DataFrame(rows, columns=['Presentation', 'Question', 'No participant who got this wrong'])
@@ -274,10 +279,13 @@ def get_participant_stats(user_id: int):
     group by audience_name
     order by avg_point ASC
     )
-    select * from answer_stats where answer_count > 10
+    select * from answer_stats where answer_count > 10 LIMIT 1000
     """
     rows = execute(sql)
-    return pd.DataFrame(rows, columns=['Participant Name', 'Avg Point', 'Answer Count' ])
+    df = pd.DataFrame(rows, columns=['Participant Name', 'Avg Point', 'Answer Count' ])
+    df['Avg Point'] = df['Avg Point'].astype(float)
+    df['Avg Point'] = df['Avg Point'].fillna(0)
+    return df
 
 
 def get_participant_correct_stats(user_id: int):
@@ -295,6 +303,7 @@ def get_participant_correct_stats(user_id: int):
     select * from correct_stats
     where total_answers > 10
     order by correct_ratio ASC
+    LIMIT 1000
     """
     rows = execute(sql)
     df = pd.DataFrame(rows, columns=['Participant Name', 'Correct Answers', 'Incorrect Answers', 'Total Answers', 'Correct Ratio'])
