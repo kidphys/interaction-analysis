@@ -264,3 +264,41 @@ def get_wrong_often_questions(user_id: int):
     """
     rows = execute(sql)
     return pd.DataFrame(rows, columns=['Presentation', 'Question', 'No participant who got this wrong'])
+
+
+def get_participant_stats(user_id: int):
+    sql = f"""
+    with answer_stats as (
+    select AVG(earned_points) as avg_point, COUNT(id) as answer_count, audience_name from aha_report_x.mart_points
+    where userid = {user_id}
+    group by audience_name
+    order by avg_point ASC
+    )
+    select * from answer_stats where answer_count > 10
+    """
+    rows = execute(sql)
+    return pd.DataFrame(rows, columns=['Avg Point', 'Answer Count', 'Audience Name'])
+
+
+def get_participant_correct_stats(user_id: int):
+    sql = f"""
+    with correct_stats as (
+	select audience_name,
+		SUM(CASE WHEN correct = 'correct' THEN 1 ELSE 0 END) AS correct_count,
+	    SUM(CASE WHEN correct = 'incorrect' THEN 1 ELSE 0 END) AS incorrect_count,
+	    COUNT(id) AS total_answers,
+	    1.0 * SUM(CASE WHEN correct = 'correct' THEN 1 ELSE 0 END) / COUNT(*) AS correct_ratio
+	from aha_report_x.mart_presentation_interactions
+	where userid = {user_id} and correct IN ('correct', 'incorrect')
+	group by audience_name
+    )
+    select * from correct_stats
+    where total_answers > 10
+    order by correct_ratio ASC
+    """
+    rows = execute(sql)
+    df = pd.DataFrame(rows, columns=['Participant Name', 'Correct Answers', 'Incorrect Answers', 'Total Answers', 'Correct Ratio'])
+    df['Correct Ratio'] = df['Correct Ratio'].astype(float).round(4)
+    df['Correct Percentage'] = df['Correct Ratio'] * 100
+    df['Correct Percentage'] = df['Correct Percentage'].round(2)
+    return df

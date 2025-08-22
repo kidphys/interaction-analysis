@@ -8,18 +8,19 @@ import pandas as pd
 import numpy as np
 import altair as alt
 
-from warehouse_repo import enrich_audience_with_category, enrich_points_with_audience_segment, extract_poll_value, extract_quiz_value, extract_short_answer, get_avg_point_per_question, get_participant_count_per_day, get_points_of_presentation, get_wrong_often_questions
+from warehouse_repo import enrich_audience_with_category, enrich_points_with_audience_segment, extract_poll_value, extract_quiz_value, extract_short_answer, get_avg_point_per_question, get_participant_correct_stats, get_participant_count_per_day, get_participant_stats, get_points_of_presentation, get_wrong_often_questions
 from warehouse_repo import get_participant_count_per_week_v2
 from warehouse_repo import get_interactions_of_presentation, get_presentations_of_user
 
 
 
-overview_tab, presentation_tab = st.tabs(["Question Insights", "Deep Dive"])
+participant_tab, overview_tab,  presentation_tab = st.tabs(["Participant Insights", "Question Insights", "Deep Dive"])
 with overview_tab:
     top_container = st.container()
 with presentation_tab:
     bottom_container = st.container()
 
+# DUKE_USER_ID = 1472007
 # KIOTVIET_USER_ID = 259137
 params = st.query_params
 user_id = params.get('user_id', 1918789)
@@ -29,9 +30,9 @@ presentation_df = presentation_df.sort_values(by='createdat', ascending=False)
 st.set_page_config(layout="wide")
 
 
-def show_df_using_ag_grid(df):
+def show_df_using_ag_grid(df, page_size=10):
     gb = GridOptionsBuilder.from_dataframe(df)
-    gb.configure_pagination(paginationAutoPageSize=False, paginationPageSize=10)
+    gb.configure_pagination(paginationAutoPageSize=False, paginationPageSize=page_size)
     gb.configure_default_column(resizable=True, sortable=True, filter=True)
     grid_options = gb.build()
 
@@ -52,6 +53,18 @@ with overview_tab:
     avg_point_per_question_df['Avg Point'] = avg_point_per_question_df['Avg Point'].round(2)
     st.subheader('Low Score Questions In The Last 3 Months')
     show_df_using_ag_grid(avg_point_per_question_df)
+
+
+with participant_tab:
+    participant_stats_df = get_participant_stats(user_id)
+    participant_stats_df['Avg Point'] = participant_stats_df['Avg Point'].round(2)
+    st.subheader('Participant With Lowest Score')
+    show_df_using_ag_grid(participant_stats_df, page_size=20)
+
+    participant_correct_stats_df = get_participant_correct_stats(user_id)
+    st.subheader('Participant With Lowest Correct Percentage')
+    show_df_using_ag_grid(participant_correct_stats_df[['Participant Name', 'Total Answers', 'Correct Percentage']], page_size=20)
+
 
 
 with bottom_container:
