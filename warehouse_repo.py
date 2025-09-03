@@ -1,3 +1,5 @@
+from re import I
+from typing import List
 from redshift_api import execute
 import pandas as pd
 import json
@@ -28,10 +30,18 @@ def get_interactions_of_presentation(presentation_id: str):
         "Createdat"
     ]
     cols_str = [f'"{col}"' for col in cols]
-    sql = f'SELECT {", ".join(cols_str)} FROM aha_report_x.mart_presentation_interactions WHERE presentationid = {presentation_id};'
+    sql = f'SELECT {", ".join(cols_str)} FROM aha_report_x.mart_presentation_interactions WHERE presentationid = {presentation_id} AND createdat >= dateadd(day, -90, getdate());'
     rows = execute(sql)
-    return pd.DataFrame(rows, columns=cols)
+    df = pd.DataFrame(rows, columns=cols)
+    df['Audience Name'] = df['audience_name']
+    return df
 
+
+def get_polls_of_presentation(presentation_id: str):
+    df = get_interactions_of_presentation(presentation_id)
+    df = df[df['Slidetypenormalized'] == 'Poll'].copy()
+    df['Chosen Poll'] = df.apply(lambda x: extract_poll_value(x['Slidetitle'], x['Slideoptions'], x['poll_vote']), axis=1)
+    return df
 
 def get_points_of_presentation(presentation_id: str):
     # One source of truth
@@ -269,6 +279,63 @@ def get_wrong_often_questions(user_id: int):
     """
     rows = execute(sql)
     return pd.DataFrame(rows, columns=['Presentation', 'Question', 'No participant who got this wrong'])
+
+
+def get_participant_stats_with_slide_ids(user_id: int, slide_df: pd.DataFrame):
+    """
+    Get participant stats grouped by slide category.
+
+    Args:
+        user_id: The user ID to filter by
+        slide_df: DataFrame with columns 'id' and 'category'
+
+    Returns:
+        DataFrame with participant stats grouped by slide category
+    """
+    # For large datasets, use a simpler approach: filter first, then group in pandas
+    # This avoids complex SQL escaping issues with special characters
+
+    # Get the slide IDs as a comma-separated string for SQL
+    slide_id_list = "'" + "','".join(slide_df['id'].astype(str)) + "'"
+
+    sql = f"""
+    SELECT
+        mp.audience_name,
+        mp.slideid,
+        mp.earned_points,
+        mp.id
+    FROM aha_report_x.mart_points mp
+    WHERE mp.userid = {user_id}
+    AND mp.slideid IN ({slide_id_list})
+    """
+
+    rows = execute(sql)
+    df = pd.DataFrame(rows, columns=['Participant Name', 'Slide ID', 'Earned Points', 'Answer ID'])
+
+    # Create mapping dictionary for slide ID -> category
+    slide_category_map = dict(zip(slide_df['id'].astype(str), slide_df['category']))
+
+    # Map slide IDs to categories
+    df['Category'] = df['Slide ID'].astype(str).map(slide_category_map)
+
+    # Group by participant and category, then aggregate
+    result_df = df.groupby(['Participant Name', 'Category']).agg({
+        'Earned Points': 'mean',
+        'Answer ID': 'count'
+    }).reset_index()
+
+    # Rename columns to match expected output
+    result_df.columns = ['Participant Name', 'Category', 'Avg Point', 'Answer Count']
+
+    # Filter participants with more than 10 answers and clean up data types
+    result_df = result_df[result_df['Answer Count'] > 10].copy()
+    result_df['Avg Point'] = result_df['Avg Point'].astype(float).fillna(0)
+    result_df['Answer Count'] = result_df['Answer Count'].astype(int)
+
+    # Sort by average point ascending
+    result_df = result_df.sort_values('Avg Point').reset_index(drop=True)
+
+    return result_df
 
 
 def get_participant_stats(user_id: int):
