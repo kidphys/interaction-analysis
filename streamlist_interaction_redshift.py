@@ -73,6 +73,18 @@ with participant_tab:
     participant_stats_df = get_participant_stats(user_id)
     participant_stats_df['Avg Point'] = participant_stats_df['Avg Point'].round(2)
     st.subheader('Participant With Lowest Score')
+    # Altair histogram of Avg point
+    hist = (
+        alt.Chart(participant_stats_df)
+        .mark_bar()
+        .encode(
+            alt.X("Avg Point", bin=alt.Bin(maxbins=20), title="Average Point"),
+            alt.Y("count()", title="Number of Participants"),
+        )
+        .properties(title="Distribution of Average Point")
+    )
+
+    st.altair_chart(hist, use_container_width=True)
     show_df_using_ag_grid(participant_stats_df, page_size=20)
 
     participant_correct_stats_df = get_participant_correct_stats(user_id)
