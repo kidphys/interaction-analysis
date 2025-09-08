@@ -50,3 +50,5 @@ with col1:
         title=selected_first_slide['Slidetitle']
     )
     st.altair_chart(chart, use_container_width=True)
+
+    st.write(df[['Slidetitle']])

@@ -259,26 +259,49 @@ def get_avg_point_per_question(user_id: int):
     return df
 
 
-def get_wrong_often_questions(user_id: int):
+def get_wrong_often_questions_v2(user_id: int):
     sql = f"""
     SELECT
-    dp.name as presentation_title,
+    dp.name AS presentation_title,
     ds.title AS slide_title,
-    COUNT(DISTINCT f.audienceid) AS avg_point
+    COUNT(CASE WHEN mpi.correct = 'correct' THEN mpi.id END) AS correct_count,
+    COUNT(CASE WHEN mpi.correct = 'incorrect' THEN mpi.id END) AS incorrect_count,
+    COUNT(mpi.id) AS total_answers
+    FROM aha_report_x.mart_presentation_interactions mpi
+    JOIN aha_report_x.dim_slides ds
+        ON mpi.slideid = ds.id
+    JOIN aha_report_x.dim_presentations dp
+        ON mpi.presentationid = dp.id
+    WHERE mpi.userid = {user_id}
+    AND mpi.slidetypenormalized = 'Pick Answer'
+    GROUP BY ds.title, dp.name
+    ORDER BY total_answers DESC;
+
+    """
+    rows = execute(sql)
+    return pd.DataFrame(rows, columns=['Presentation', 'Question', 'Correct Count', 'Incorrect Count', 'Total Answers'])
+
+
+def get_wrong_often_questions(user_id: int):
+    sql = f"""
+        SELECT
+            dp.name AS presentation_title,
+            ds.title AS slide_title,
+            COUNT(DISTINCT CASE WHEN f.earned_points = 0 THEN f.audienceid END) AS zero_point_count,
+            COUNT(DISTINCT f.audienceid) AS total_participant_count
         FROM aha_report_x.fct_points f
         JOIN aha_report_x.dim_presentations dp
             ON f.presentationid = dp.id
         JOIN aha_report_x.dim_slides ds
             ON f.slideid = ds.id
         WHERE dp.userid = {user_id}
-        AND f.earned_points = 0
-        AND f.createdat >= dateadd(day, -60, getdate())
+        AND f.createdat >= dateadd(day, -90, getdate())
         GROUP BY ds.title, dp.name
-        ORDER BY avg_point DESC
+        ORDER BY zero_point_count DESC
         LIMIT 1000;
     """
     rows = execute(sql)
-    return pd.DataFrame(rows, columns=['Presentation', 'Question', 'No participant who got this wrong'])
+    return pd.DataFrame(rows, columns=['Presentation', 'Question', 'No participant who got this wrong', 'Total participant'])
 
 
 def get_participant_stats_with_slide_ids(user_id: int, slide_df: pd.DataFrame):
