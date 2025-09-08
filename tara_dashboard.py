@@ -13,3 +13,16 @@ wrong_question_df['Correct Percentage'] = wrong_question_df['Correct Count'] / w
 wrong_question_df['Correct Percentage'] = wrong_question_df['Correct Percentage'].round(2)
 wrong_question_df.sort_values(by='Correct Percentage', inplace=True)
 st.write(wrong_question_df)
+
+# Altair histogram of Correct Percentage
+hist = (
+    alt.Chart(wrong_question_df)
+    .mark_bar()
+    .encode(
+        alt.X("Correct Percentage", bin=alt.Bin(maxbins=20), title="Correct Percentage (%)"),
+        alt.Y("count()", title="Number of Questions"),
+    )
+    .properties(title="Distribution of Correct Percentage")
+)
+
+st.altair_chart(hist, use_container_width=True)
