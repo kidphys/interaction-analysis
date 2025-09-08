@@ -47,6 +47,20 @@ def show_df_using_ag_grid(df, page_size=10):
 with overview_tab:
     st.subheader('Commonly Wrong Questions In The Last 3 Months')
     wrong_df = get_wrong_often_questions(user_id)
+    wrong_df['Percent'] = wrong_df['No participant who got this wrong'] / wrong_df['Total participant'] * 100
+    wrong_df['Percent'] = wrong_df['Percent'].round(2)
+    # Altair histogram of Correct Percentage
+    hist = (
+        alt.Chart(wrong_df)
+        .mark_bar()
+        .encode(
+            alt.X("Percent", bin=alt.Bin(maxbins=20), title="Correct Percentage (%)"),
+            alt.Y("count()", title="Number of Questions"),
+        )
+        .properties(title="Distribution of Correct Percentage")
+    )
+
+    st.altair_chart(hist, use_container_width=True)
     show_df_using_ag_grid(wrong_df)
 
     avg_point_per_question_df = get_avg_point_per_question(user_id)
