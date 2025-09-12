@@ -7,11 +7,11 @@ import ast
 
 def get_wrong_often_questions_v2(user_id: int):
     sql = f"""
-      SELECT
+    SELECT
     dp.title AS presentation_title,
     ds.slide_title AS slide_title,
     COUNT(CASE WHEN fa.correct = true THEN fa.id END) AS correct_count,
-    COUNT(CASE WHEN fa.correct = false THEN fa.id END) AS incorrect_count,
+    COUNT(CASE WHEN fa.correct != true THEN fa.id END) AS incorrect_count,
     COUNT(fa.id) AS total_answers
     FROM aha_report_v5.fact_answers fa
     JOIN aha_report_v5.dim_questions ds

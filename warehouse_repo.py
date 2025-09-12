@@ -273,10 +273,9 @@ def get_wrong_often_questions_v2(user_id: int):
     JOIN aha_report_x.dim_presentations dp
         ON mpi.presentationid = dp.id
     WHERE mpi.userid = {user_id}
-    AND mpi.slidetypenormalized = 'Pick Answer'
+    AND mpi.slidetypenormalized = 'Pick Answer' and mpi.interaction_source = 'answer'
     GROUP BY ds.title, dp.name
     ORDER BY total_answers DESC;
-
     """
     rows = execute(sql)
     return pd.DataFrame(rows, columns=['Presentation', 'Question', 'Correct Count', 'Incorrect Count', 'Total Answers'])
