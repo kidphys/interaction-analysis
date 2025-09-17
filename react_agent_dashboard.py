@@ -27,11 +27,14 @@ if 'agent_executor' not in st.session_state:
 if 'current_user_id' not in st.session_state:
     st.session_state.current_user_id = "1472007"
 
+if 'agent' not in st.session_state:
+    st.session_state.agent = StructuredAgent(user_id=st.session_state.current_user_id)
 
 
 def display_structured_response(response_content):
     """Helper function to display structured responses consistently"""
     if isinstance(response_content, InsightResponse):
+        print(f'-'*100 + '\n')
         print(f'Instance of Insight response_content: {response_content}')
         # Handle structured response object
         for item in response_content.items:
@@ -83,26 +86,25 @@ def display_structured_response(response_content):
 
 
 
-def stream_agent_response_ui(prompt, user_id="1472007"):
-    """Stream the agent response with UI updates"""
-    # Set the current user_id in session state for the tool to access
-    st.session_state.current_user_id = user_id
+agent = StructuredAgent(user_id=st.session_state.current_user_id)
 
-    agent = StructuredAgent(user_id=user_id)
+
+def stream_agent_response_ui(agent: StructuredAgent, prompt):
+    """Stream the agent response with UI updates"""
 
     # Create a placeholder for streaming output
     message_placeholder = st.empty()
-    full_response = ""
     tool_executions = []
 
     try:
         for step in agent.stream_query(prompt):
             if step and step.get("messages"):
+                print(f'\n' + '-' * 100 + '\n')
+                print(step)
                 last_message = step["messages"][-1]
                 if hasattr(last_message, 'content') and last_message.content:
                     # Update the streaming display
                     if last_message.type == "ai":
-                        full_response = last_message.content
 
                         # Display tool executions if any
                         if tool_executions:
@@ -112,19 +114,24 @@ def stream_agent_response_ui(prompt, user_id="1472007"):
                         # Use helper function to display response
                         message_placeholder.empty()
                         with message_placeholder.container():
-                            st.markdown("🤖 **AI Response:**")
-                            display_structured_response(last_message.content)
+                            try:
+                                markdown_content = last_message.content[0]['text']
+                            except Exception as e:
+                                markdown_content = 'Giving my conclusion...'
+                            st.markdown(markdown_content)
                     elif last_message.type == "tool":
                         # Track tool execution
                         tool_name = getattr(last_message, 'name', 'Unknown Tool')
                         tool_executions.append(f"{tool_name}")
                         st.info(f"🔧 Executing: {tool_name}...")
-
-        return full_response
+        return agent
 
     except Exception as e:
+        print(f'Error executing agent: {str(e)}')
+        import traceback
+        traceback.print_exc()
         st.error(f"Error executing agent: {str(e)}")
-        return None
+        return agent
 
 # Main UI
 st.title("🤖 AI Data Assistant")
@@ -138,6 +145,7 @@ with st.sidebar:
     # Update session state when user_id changes
     if user_id != st.session_state.current_user_id:
         st.session_state.current_user_id = user_id
+        st.session_state.agent = StructuredAgent(user_id=user_id)
 
     st.markdown("---")
     st.markdown("### About")
@@ -146,6 +154,13 @@ with st.sidebar:
     - Answer questions about your data
     - Provide recommendations based on analysis
     - Generate SQL queries automatically
+    """)
+
+    st.info("""
+    💡 **Tips for better responses:**
+    - Ask specific questions to avoid response truncation
+    - Break complex requests into smaller parts
+    - If you get a truncation warning, try rephrasing your question more concisely
     """)
 
     if st.button("Clear Chat History"):
@@ -172,14 +187,31 @@ if prompt := st.chat_input("Ask me anything about your data..."):
     # Generate and display assistant response
     with st.chat_message("assistant"):
         with st.spinner("Thinking and analyzing data..."):
-            response = stream_agent_response_ui(prompt, user_id)
-            if response:
-                st.session_state.messages.append({"role": "assistant", "content": response})
+            try:
+                agent = stream_agent_response_ui(st.session_state.agent, prompt)
+                response = agent.get_structured_output()
+                if response:
+                    st.session_state.messages.append({"role": "assistant", "content": response})
+                else:
+                    error_msg = "Sorry, I encountered an error processing your request."
+                    st.error(error_msg)
+                    st.session_state.messages.append({"role": "assistant", "content": error_msg})
+            except Exception as e:
+                error_msg = str(e)
 
-            else:
-                error_msg = "Sorry, I encountered an error processing your request."
-                st.error(error_msg)
-                st.session_state.messages.append({"role": "assistant", "content": error_msg})
+                if "max_tokens" in error_msg.lower() or "truncated" in error_msg.lower():
+                    st.warning("⚠️ The response was truncated. Try asking a more specific question or break your request into smaller parts.")
+                    # Create a simple fallback response
+                    fallback_response = InsightResponse(items=[
+                        MessageItem(
+                            type="message",
+                            content="The response was truncated due to length limits. Please try asking a more specific question."
+                        )
+                    ])
+                    st.session_state.messages.append({"role": "assistant", "content": fallback_response})
+                else:
+                    st.error(f"Error: {error_msg}")
+                    st.session_state.messages.append({"role": "assistant", "content": f"Error: {error_msg}"})
 
 # Example queries section
 with st.expander("💡 Example Queries"):
@@ -209,14 +241,29 @@ with st.expander("💡 Example Queries"):
 
             with st.chat_message("assistant"):
                 with st.spinner("Thinking and analyzing data..."):
-                    response = stream_agent_response_ui(query, user_id)
-
-                    if response:
-                        st.session_state.messages.append({"role": "assistant", "content": response})
-                    else:
-                        error_msg = "Sorry, I encountered an error processing your request."
-                        st.error(error_msg)
-                        st.session_state.messages.append({"role": "assistant", "content": error_msg})
+                    try:
+                        agent = stream_agent_response_ui(st.session_state.agent, query)
+                        response = agent.get_structured_output()
+                        if response:
+                            st.session_state.messages.append({"role": "assistant", "content": response})
+                        else:
+                            error_msg = "Sorry, I encountered an error processing your request."
+                            st.error(error_msg)
+                            st.session_state.messages.append({"role": "assistant", "content": error_msg})
+                    except Exception as e:
+                        error_msg = str(e)
+                        if "max_tokens" in error_msg.lower() or "truncated" in error_msg.lower():
+                            st.warning("⚠️ The response was truncated. Try asking a more specific question or break your request into smaller parts.")
+                            fallback_response = InsightResponse(items=[
+                                MessageItem(
+                                    type="message",
+                                    content="The response was truncated due to length limits. Please try asking a more specific question."
+                                )
+                            ])
+                            st.session_state.messages.append({"role": "assistant", "content": fallback_response})
+                        else:
+                            st.error(f"Error: {error_msg}")
+                            st.session_state.messages.append({"role": "assistant", "content": f"Error: {error_msg}"})
 
             st.rerun()
 

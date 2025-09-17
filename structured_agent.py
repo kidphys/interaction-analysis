@@ -108,14 +108,19 @@ def run_query_tool(sql: str, config: RunnableConfig):
 system_prompt = """
 You are a helpful assistant that can give insights about the data.
 
+IMPORTANT: Keep your responses concise and focused to avoid token limits. Be direct and to-the-point.
+
 It's critical that your final response should use the structured format with an 'items' list that can contain:
-1. message items: for analysis, comments, and recommendations
+1. message items: for analysis, comments, and recommendations (keep analysis brief and focused)
 2. table items: for displaying data tables with column names and values (always provide a descriptive title)
 3. chart items: for displaying charts with data and chart type (bar, line, area, pie, etc.) (always provide a descriptive title)
 
-You can mix and match these items to provide comprehensive responses with both analysis and visual data.
-For tables and charts, always provide meaningful titles that describe what the data represents.
-Data should be in 'series' orient format: {column_name: [list_of_values]}
+Guidelines:
+- Limit data tables to most relevant results (top 10-15 rows max)
+- Keep message content concise and actionable
+- Focus on key insights rather than lengthy explanations
+- Use bullet points for multiple insights
+- Data should be in 'series' orient format: {column_name: [list_of_values]}
 """
 
 class StructuredAgent:
@@ -133,7 +138,7 @@ class StructuredAgent:
     def _initialize_agent(self):
         """Initialize the React agent with memory"""
         memory = MemorySaver()
-        model = init_chat_model(self.model_name)
+        model = init_chat_model(self.model_name, max_tokens=8096)
         tools = [run_query_tool]
         sys_message = SystemMessage(content=system_prompt)
 
@@ -178,10 +183,37 @@ class StructuredAgent:
             ):
                 if step["messages"]:
                     last_message = step["messages"][-1]
+
+            # Check for max_tokens truncation
+            if hasattr(last_message, 'response_metadata') and last_message.response_metadata:
+                stop_reason = last_message.response_metadata.get('stop_reason')
+                if stop_reason == 'max_tokens':
+                    print("Warning: Response was truncated due to max_tokens limit")
+                    # Create a fallback response
+                    fallback_response = InsightResponse(items=[
+                        MessageItem(
+                            type="message",
+                            content="⚠️ The response was truncated due to length limits. Please try asking a more specific question or break your request into smaller parts."
+                        )
+                    ])
+                    return fallback_response
+
             self._process_structured_output(last_message)
             return last_message
         except Exception as e:
-            print(f"Error executing agent: {str(e)}")
+            error_msg = str(e)
+            print(f"Error executing agent: {error_msg}")
+
+            # Handle specific max_tokens error
+            if "max_tokens" in error_msg.lower():
+                fallback_response = InsightResponse(items=[
+                    MessageItem(
+                        type="message",
+                        content="⚠️ The response was truncated due to length limits. Please try asking a more specific question or break your request into smaller parts."
+                    )
+                ])
+                return fallback_response
+
             return None
 
     def stream_query(self, prompt: str):
@@ -210,9 +242,36 @@ class StructuredAgent:
             ):
                 if 'structured_response' in step:
                     self.insight_response = step['structured_response']
+
+                # Check for max_tokens truncation in streaming
+                if step.get("messages"):
+                    last_message = step["messages"][-1]
+                    if hasattr(last_message, 'response_metadata') and last_message.response_metadata:
+                        stop_reason = last_message.response_metadata.get('stop_reason')
+                        if stop_reason == 'max_tokens':
+                            print("Warning: Streaming response was truncated due to max_tokens limit")
+                            # Create a fallback response
+                            self.insight_response = InsightResponse(items=[
+                                MessageItem(
+                                    type="message",
+                                    content="⚠️ The response was truncated due to length limits. Please try asking a more specific question or break your request into smaller parts."
+                                )
+                            ])
+
                 yield step
         except Exception as e:
-            print(f"Error executing agent: {str(e)}")
+            error_msg = str(e)
+            print(f"Error executing agent: {error_msg}")
+
+            # Handle specific max_tokens error in streaming
+            if "max_tokens" in error_msg.lower():
+                self.insight_response = InsightResponse(items=[
+                    MessageItem(
+                        type="message",
+                        content="⚠️ The response was truncated due to length limits. Please try asking a more specific question or break your request into smaller parts."
+                    )
+                ])
+
             yield None
 
     def invoke(self, prompt: str):
@@ -238,7 +297,12 @@ class StructuredAgent:
         Get the structured output from the agent
         """
         if self.insight_response is None:
-            raise ValueError("Structured output not found or not processed yet")
+            return InsightResponse(items=[
+                MessageItem(
+                    type="message",
+                    content="⚠️ Structured output not found or not processed yet"
+                )
+            ])
         return self.insight_response
 
 # Convenience function for backward compatibility
