@@ -61,6 +61,8 @@ def display_structured_response(response_content):
                     st.info(f"Chart type '{item.chart_type}' displayed as table")
         return True
     elif isinstance(response_content, str):
+        print(f'-'*100 + '\n')
+        print(f'Instance of legacy JSON format')
         # Handle legacy JSON format for backward compatibility
         try:
             if "```json" in response_content:
@@ -83,10 +85,6 @@ def display_structured_response(response_content):
     # Fallback for plain text
     st.markdown(response_content)
     return False
-
-
-
-agent = StructuredAgent(user_id=st.session_state.current_user_id)
 
 
 def stream_agent_response_ui(agent: StructuredAgent, prompt):
@@ -124,14 +122,16 @@ def stream_agent_response_ui(agent: StructuredAgent, prompt):
                         tool_name = getattr(last_message, 'name', 'Unknown Tool')
                         tool_executions.append(f"{tool_name}")
                         st.info(f"🔧 Executing: {tool_name}...")
-        return agent
+        print(f'\n\nFinished streaming agent response\n')
+        print(f'{type(agent.get_structured_output())}: {agent.get_structured_output()}')
+        return agent.get_structured_output()
 
     except Exception as e:
         print(f'Error executing agent: {str(e)}')
         import traceback
         traceback.print_exc()
         st.error(f"Error executing agent: {str(e)}")
-        return agent
+        return agent.get_structured_output()
 
 # Main UI
 st.title("🤖 AI Data Assistant")
@@ -175,21 +175,16 @@ for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         display_structured_response(message['content'])
 
-# Chat input
-if prompt := st.chat_input("Ask me anything about your data..."):
-    # Add user message to chat history
-    st.session_state.messages.append({"role": "user", "content": prompt})
 
-    # Display user message
+def st_process_user_prompt(prompt):
+    st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    # Generate and display assistant response
     with st.chat_message("assistant"):
         with st.spinner("Thinking and analyzing data..."):
             try:
-                agent = stream_agent_response_ui(st.session_state.agent, prompt)
-                response = agent.get_structured_output()
+                response = stream_agent_response_ui(st.session_state.agent, prompt)
                 if response:
                     st.session_state.messages.append({"role": "assistant", "content": response})
                 else:
@@ -198,10 +193,8 @@ if prompt := st.chat_input("Ask me anything about your data..."):
                     st.session_state.messages.append({"role": "assistant", "content": error_msg})
             except Exception as e:
                 error_msg = str(e)
-
                 if "max_tokens" in error_msg.lower() or "truncated" in error_msg.lower():
                     st.warning("⚠️ The response was truncated. Try asking a more specific question or break your request into smaller parts.")
-                    # Create a simple fallback response
                     fallback_response = InsightResponse(items=[
                         MessageItem(
                             type="message",
@@ -212,6 +205,13 @@ if prompt := st.chat_input("Ask me anything about your data..."):
                 else:
                     st.error(f"Error: {error_msg}")
                     st.session_state.messages.append({"role": "assistant", "content": f"Error: {error_msg}"})
+
+    st.rerun()
+
+
+# Chat input
+if prompt := st.chat_input("Ask me anything about your data..."):
+    st_process_user_prompt(prompt)
 
 # Example queries section
 with st.expander("💡 Example Queries"):
@@ -234,38 +234,38 @@ with st.expander("💡 Example Queries"):
 
     for query in example_queries:
         if st.button(f"Try: {query}", key=f"example_{hash(query)}"):
-            # Simulate clicking the chat input
-            st.session_state.messages.append({"role": "user", "content": query})
-            with st.chat_message("user"):
-                st.markdown(query)
+            st_process_user_prompt(query)
+            # # Simulate clicking the chat input
+            # st.session_state.messages.append({"role": "user", "content": query})
+            # with st.chat_message("user"):
+            #     st.markdown(query)
 
-            with st.chat_message("assistant"):
-                with st.spinner("Thinking and analyzing data..."):
-                    try:
-                        agent = stream_agent_response_ui(st.session_state.agent, query)
-                        response = agent.get_structured_output()
-                        if response:
-                            st.session_state.messages.append({"role": "assistant", "content": response})
-                        else:
-                            error_msg = "Sorry, I encountered an error processing your request."
-                            st.error(error_msg)
-                            st.session_state.messages.append({"role": "assistant", "content": error_msg})
-                    except Exception as e:
-                        error_msg = str(e)
-                        if "max_tokens" in error_msg.lower() or "truncated" in error_msg.lower():
-                            st.warning("⚠️ The response was truncated. Try asking a more specific question or break your request into smaller parts.")
-                            fallback_response = InsightResponse(items=[
-                                MessageItem(
-                                    type="message",
-                                    content="The response was truncated due to length limits. Please try asking a more specific question."
-                                )
-                            ])
-                            st.session_state.messages.append({"role": "assistant", "content": fallback_response})
-                        else:
-                            st.error(f"Error: {error_msg}")
-                            st.session_state.messages.append({"role": "assistant", "content": f"Error: {error_msg}"})
+            # with st.chat_message("assistant"):
+            #     with st.spinner("Thinking and analyzing data..."):
+            #         try:
+            #             response = stream_agent_response_ui(st.session_state.agent, query)
+            #             if response:
+            #                 st.session_state.messages.append({"role": "assistant", "content": response})
+            #             else:
+            #                 error_msg = "Sorry, I encountered an error processing your request."
+            #                 st.error(error_msg)
+            #                 st.session_state.messages.append({"role": "assistant", "content": error_msg})
+            #         except Exception as e:
+            #             error_msg = str(e)
+            #             if "max_tokens" in error_msg.lower() or "truncated" in error_msg.lower():
+            #                 st.warning("⚠️ The response was truncated. Try asking a more specific question or break your request into smaller parts.")
+            #                 fallback_response = InsightResponse(items=[
+            #                     MessageItem(
+            #                         type="message",
+            #                         content="The response was truncated due to length limits. Please try asking a more specific question."
+            #                     )
+            #                 ])
+            #                 st.session_state.messages.append({"role": "assistant", "content": fallback_response})
+            #             else:
+            #                 st.error(f"Error: {error_msg}")
+            #                 st.session_state.messages.append({"role": "assistant", "content": f"Error: {error_msg}"})
 
-            st.rerun()
+            # st.rerun()
 
 # Footer
 st.markdown("---")
