@@ -2,6 +2,4 @@ redshift-connector==2.1.8
 sqlalchemy-redshift==0.8.14
 dotenv==0.9.9
 streamlit-aggrid==1.1.8
-langchain==0.0.350
-langchain-experimental==0.0.47
-langgraph==0.6.7
+langgraph>=0.6.0
