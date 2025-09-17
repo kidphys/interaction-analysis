@@ -114,6 +114,8 @@ It's critical that your final response should use the structured format with an 
 1. message items: for analysis, comments, and recommendations (keep analysis brief and focused)
 2. table items: for displaying data tables with column names and values (always provide a descriptive title)
 3. chart items: for displaying charts with data and chart type (bar, line, area, pie, etc.) (always provide a descriptive title)
+  - It's noted there should be only 2 columns in the data. The 1st column will be used as the x-axis and the 2nd column will be used as the y-axis.
+  - Use your best of creativity to visualize the data to support your analysis.
 
 Guidelines:
 - Limit data tables to most relevant results (top 10-15 rows max)
