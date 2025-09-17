@@ -222,19 +222,15 @@ if prompt := st.chat_input("Ask me anything about your data..."):
 with st.expander("💡 Example Queries"):
     st.markdown("""
     Try these example queries to get started:
-
-    - "Give me the top 10 questions with their accuracy rates"
-    - "What are the most common wrong answers for quiz questions?"
-    - "Show me engagement patterns by slide type"
-    - "Which presentations have the highest participation rates?"
-    - "What are the trending topics in open-ended responses?"
     """)
 
     example_queries = [
-        "Give me the top 10 questions with their accuracy rates",
         "What are the most common slide types used?",
+        "Show me engagement patterns by slide type",
         "Show me recent presentation activity",
-        "Which questions have the lowest accuracy rates?"
+        "Which questions have the lowest accuracy rates?",
+        "Which presentations have the highest participation rates?",
+        "What are the trending topics in open-ended responses?"
     ]
 
     for query in example_queries:
