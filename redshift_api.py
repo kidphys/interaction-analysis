@@ -46,3 +46,44 @@ def execute(sql):
         res = conn.execute(text(sql))
         rows = res.fetchall()
     return rows
+
+
+@st.cache_data(ttl='60m')
+def execute_with_columns(sql):
+    engine = create_engine()
+    with engine.connect() as conn:
+        res = conn.execute(text(sql))
+        rows = res.fetchall()
+        cols = res.keys()
+    return rows, cols
+
+
+def create_engine_without_cache():
+    # build the sqlalchemy URL
+    url = URL.create(
+        drivername='redshift+redshift_connector', # indicate redshift_connector driver and dialect will be used
+        # drivername="redshift+psycopg2",
+        host=REDSHIFT_HOST, # Amazon Redshift host
+        port=5439, # Amazon Redshift port
+        database='report', # Amazon Redshift database
+        username=REDSHIFT_USER, # Amazon Redshift username
+        password=REDSHIFT_PASSWORD # Amazon Redshift password
+    )
+    engine = sa.create_engine(url)
+
+    sql = """
+    SELECT id FROM aha_report_x.mart_presentation_interactions LIMIT 1;
+    """
+
+    with engine.connect() as conn:
+        conn.execute(text(sql))
+    return engine
+
+
+def execute_with_columns_without_cache(sql):
+    engine = create_engine_without_cache()
+    with engine.connect() as conn:
+        res = conn.execute(text(sql))
+        rows = res.fetchall()
+        cols = res.keys()
+    return rows, cols
