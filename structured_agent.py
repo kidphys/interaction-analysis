@@ -1,3 +1,4 @@
+from langgraph.graph.state import RunnableConfig
 from pydantic import BaseModel, Field
 from typing import Union, List, Dict, Any, Literal, Annotated
 from langchain.chat_models import init_chat_model
@@ -5,7 +6,7 @@ from langchain_core.messages import SystemMessage
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.prebuilt import create_react_agent
 from langchain.tools import tool
-from redshift_api import execute_with_columns, execute_with_columns_without_cache
+from redshift_api import execute_with_columns
 import traceback
 from dotenv import load_dotenv
 import json
@@ -18,203 +19,6 @@ from rich import print as rprint
 
 # Load environment variables
 load_dotenv('.env.local')
-
-# Initialize Rich console for pretty printing with full content display
-console = Console(width=120, force_terminal=True)
-
-def pretty_print_content(content):
-    """
-    Pretty print complex content that might contain structured data
-
-    Args:
-        content: The content to print (could be string, list, dict, etc.)
-    """
-    if isinstance(content, list):
-        # Handle list of content items (like tool calls)
-        for i, item in enumerate(content):
-            if isinstance(item, dict):
-                if item.get('type') == 'text':
-                    # Text content
-                    text_panel = Panel(
-                        item.get('text', ''),
-                        title=f"[bold blue]📝 Text Content {i+1}[/bold blue]",
-                        border_style="blue",
-                        padding=(1, 2)
-                    )
-                    console.print(text_panel)
-                elif item.get('type') == 'tool_use' or 'id' in item:
-                    # Tool call content
-                    tool_info = []
-                    if 'id' in item:
-                        tool_info.append(f"[yellow]ID:[/yellow] {item['id']}")
-                    if 'input' in item:
-                        tool_info.append(f"[yellow]Input:[/yellow]")
-                        # Format the input nicely - show full content
-                        if isinstance(item['input'], dict):
-                            for key, value in item['input'].items():
-                                # Show full content without truncation
-                                tool_info.append(f"  [cyan]{key}:[/cyan] {value}")
-                        else:
-                            tool_info.append(f"  {item['input']}")
-
-                    tool_panel = Panel(
-                        "\n".join(tool_info),
-                        title=f"[bold magenta]🔧 Tool Call {i+1}[/bold magenta]",
-                        border_style="magenta",
-                        padding=(1, 2)
-                    )
-                    console.print(tool_panel)
-                else:
-                    # Generic dict content - show full content
-                    dict_content = json.dumps(item, indent=2, default=str)
-
-                    dict_panel = Panel(
-                        dict_content,
-                        title=f"[bold yellow]📋 Data Item {i+1}[/bold yellow]",
-                        border_style="yellow",
-                        padding=(1, 2)
-                    )
-                    console.print(dict_panel)
-            else:
-                # Non-dict items
-                item_panel = Panel(
-                    str(item),
-                    title=f"[bold white]📄 Item {i+1}[/bold white]",
-                    border_style="white",
-                    padding=(1, 2)
-                )
-                console.print(item_panel)
-    else:
-        # Single content item
-        if isinstance(content, str):
-            # Try to parse as JSON if it looks like structured data
-            if content.startswith('[') or content.startswith('{'):
-                try:
-                    parsed = json.loads(content)
-                    pretty_print_content(parsed)
-                    return
-                except:
-                    pass
-
-            # Try to evaluate Python literal if it looks like one
-            if content.startswith('[{') and 'text' in content and 'type' in content:
-                try:
-                    import ast
-                    parsed = ast.literal_eval(content)
-                    pretty_print_content(parsed)
-                    return
-                except:
-                    pass
-
-        # Regular string content
-        content_panel = Panel(
-            str(content),
-            title="[bold green]💬 Content[/bold green]",
-            border_style="green",
-            padding=(1, 2)
-        )
-        console.print(content_panel)
-
-def pretty_print_response(response, step_num=None):
-    """
-    Pretty print the agent response using Rich formatting
-
-    Args:
-        response: The response object to print
-        step_num: Optional step number for streaming responses
-    """
-    if step_num is not None:
-        console.print(f"\n[bold blue]═══ Step {step_num} ═══[/bold blue]")
-
-    console.print(f"[dim]Response type:[/dim] [yellow]{type(response).__name__}[/yellow]")
-
-    if isinstance(response, InsightResponse):
-        # Create a tree structure for the response
-        tree = Tree(f"[bold green]InsightResponse[/bold green] ({len(response.items)} items)")
-
-        for i, item in enumerate(response.items):
-            item_node = tree.add(f"[bold cyan]Item {i+1}[/bold cyan]: {item.type}")
-
-            if item.type == "message":
-                # Display full message content with intelligent formatting
-                pretty_print_content(item.content)
-
-            elif item.type == "table":
-                # Display full table with Rich table formatting
-                if item.data:
-                    table = Table(title=item.title, show_header=True, header_style="bold magenta")
-
-                    # Add columns
-                    columns = list(item.data.keys())
-                    for col in columns:
-                        table.add_column(col, style="cyan", no_wrap=False)
-
-                    # Add rows
-                    row_count = len(next(iter(item.data.values())))
-                    for i in range(row_count):
-                        row_data = []
-                        for col in columns:
-                            value = item.data[col][i]
-                            # Format numbers nicely
-                            if isinstance(value, float):
-                                row_data.append(f"{value:.2f}")
-                            else:
-                                row_data.append(str(value))
-                        table.add_row(*row_data)
-
-                    console.print(table)
-                else:
-                    # Fallback if no data
-                    item_node.add(f"[green]Title:[/green] {item.title}")
-                    item_node.add("[red]No data available[/red]")
-
-            elif item.type == "chart":
-                # Display chart info and data
-                chart_panel = Panel(
-                    f"[bold yellow]Chart Type:[/bold yellow] {item.chart_type}\n\n" +
-                    f"[bold yellow]Data Preview:[/bold yellow]\n" +
-                    (json.dumps(item.data, indent=2, default=str) if item.data else "No data available"),
-                    title=f"[bold blue]📊 {item.title}[/bold blue]",
-                    border_style="blue",
-                    padding=(1, 2)
-                )
-                console.print(chart_panel)
-
-        console.print(tree)
-
-    elif hasattr(response, 'content'):
-        # Handle other response types with content using intelligent formatting
-        console.print(f"\n[bold cyan]📄 Response Content:[/bold cyan]")
-        pretty_print_content(response.content)
-
-    else:
-        # Fallback for unknown response types - show full content
-        try:
-            content = json.dumps(response, indent=2, default=str)
-
-            panel = Panel(
-                content,
-                title="[bold yellow]Raw Response[/bold yellow]",
-                border_style="red"
-            )
-            console.print(panel)
-        except:
-            console.print(f"[red]Unable to serialize response: {response}[/red]")
-
-def pretty_print_message(message_content):
-    """
-    Convenience function to pretty print any message content
-
-    Args:
-        message_content: The message content to display (string, list, dict, etc.)
-
-    Example usage:
-        pretty_print_message("content=[{'text': 'Hello!', 'type': 'text'}, {'id': 'tool_123', 'input': {...}}]")
-    """
-    console.print("[bold magenta]🎨 Pretty Printing Message Content[/bold magenta]")
-    console.print("─" * 60)
-    pretty_print_content(message_content)
-    console.print("─" * 60)
 
 # Pydantic models for structured responses
 class MessageItem(BaseModel):
@@ -239,7 +43,7 @@ class InsightResponse(BaseModel):
 
 # Define the tool for the dashboard context
 @tool
-def run_query_tool(sql: str):
+def run_query_tool(sql: str, config: RunnableConfig):
     """
     Run a query on the Redshift data warehouse given the following table:
     `answers`
@@ -256,7 +60,8 @@ def run_query_tool(sql: str):
         createdat (timestamp)
     """
     # Get user_id from session state
-    user_id = 1472007
+    user_id = config['metadata']['user_id']
+    # user_id = 1472007 # duke's id
 
     final_sql = f"""
    WITH answers AS (
@@ -283,9 +88,9 @@ def run_query_tool(sql: str):
     """
 
     try:
-        # rows, cols = execute_with_columns_without_cache(final_sql)
-        rows = "[('Who is this lady or gentleman?', 801, 327), ('Remember the wishes for Santa?', 54, 48), ('Who is this handsome redhead?', 43, 37), ('Who is this lady or gentleman? (on the left)', 84, 34), ('Steps to process requests', 45, 33), ('Match principle with their meaning', 34, 28), ('AhaSlides loves this place so much, we went there for company trip TWICE', 30, 28), ('Choose the correct answer?', 27, 26), ('Who is this lady or gentleman? (on the left)\\n', 39, 26), ('Which positions will have candidates joining AhaSlides next month?', 28, 26)]"
-        cols =  "RMKeyView(['slide_title', 'total_answers', 'correct_answers'])"
+        rows, cols = execute_with_columns(final_sql)
+        # rows = "[('Who is this lady or gentleman?', 801, 327), ('Remember the wishes for Santa?', 54, 48), ('Who is this handsome redhead?', 43, 37), ('Who is this lady or gentleman? (on the left)', 84, 34), ('Steps to process requests', 45, 33), ('Match principle with their meaning', 34, 28), ('AhaSlides loves this place so much, we went there for company trip TWICE', 30, 28), ('Choose the correct answer?', 27, 26), ('Who is this lady or gentleman? (on the left)\\n', 39, 26), ('Which positions will have candidates joining AhaSlides next month?', 28, 26)]"
+        # cols =  "RMKeyView(['slide_title', 'total_answers', 'correct_answers'])"
         return {
             'rows': str(rows),
             'cols': str(cols),
@@ -337,6 +142,14 @@ class StructuredAgent:
             prompt=sys_message, response_format=InsightResponse
         )
 
+    def _get_config(self):
+        return {
+            "configurable": {
+                "thread_id": f"user_{self.user_id}",
+                "user_id": self.user_id
+            }
+        }
+
     def query(self, prompt: str) -> InsightResponse:
         """
         Query the agent with a prompt and return structured response
@@ -350,12 +163,6 @@ class StructuredAgent:
         if not self.agent_executor:
             raise RuntimeError("Agent not initialized")
 
-        config = {
-            "configurable": {
-                "thread_id": f"user_{self.user_id}"
-            }
-        }
-
         input_message = {
             "role": "user",
             "content": prompt
@@ -366,13 +173,12 @@ class StructuredAgent:
             # Get the final response from the agent
             for step in self.agent_executor.stream(
                 {"messages": [input_message]},
-                config,
+                self._get_config(),
                 stream_mode="values"
             ):
                 if step["messages"]:
-                    print(f"Step message: {step['messages'][-1].content[:100]}")
                     last_message = step["messages"][-1]
-
+            self._process_structured_output(last_message)
             return last_message
         except Exception as e:
             print(f"Error executing agent: {str(e)}")
@@ -391,12 +197,6 @@ class StructuredAgent:
         if not self.agent_executor:
             raise RuntimeError("Agent not initialized")
 
-        config = {
-            "configurable": {
-                "thread_id": f"user_{self.user_id}"
-            }
-        }
-
         input_message = {
             "role": "user",
             "content": prompt
@@ -405,30 +205,41 @@ class StructuredAgent:
         try:
             for step in self.agent_executor.stream(
                 {"messages": [input_message]},
-                config,
+                self._get_config(),
                 stream_mode="values"
             ):
+                if 'structured_response' in step:
+                    self.insight_response = step['structured_response']
                 yield step
         except Exception as e:
             print(f"Error executing agent: {str(e)}")
             yield None
 
-
     def invoke(self, prompt: str):
         """
         Invoke the agent with a prompt and return structured response
         """
-        config = {
-            "configurable": {
-                "thread_id": f"user_{self.user_id}"
-            }
-        }
         input_message = {
             "role": "user",
             "content": prompt
         }
-        return self.agent_executor.invoke({"messages": [input_message]}, config)
+        return self.agent_executor.invoke({"messages": [input_message]}, self._get_config())
 
+    def _process_structured_output(self, response):
+        """
+        @Deprecated
+        Process the structured output from the agent
+        """
+        json_text = extract_json_from_content(response.content)
+        self.insight_response = InsightResponse(**json_text)
+
+    def get_structured_output(self):
+        """
+        Get the structured output from the agent
+        """
+        if self.insight_response is None:
+            raise ValueError("Structured output not found or not processed yet")
+        return self.insight_response
 
 # Convenience function for backward compatibility
 def initialize_agent():
@@ -480,104 +291,17 @@ def extract_json_from_content(content: str) -> dict:
 # Example usage and testing
 if __name__ == "__main__":
     # Test the agent in isolation
-    console.print("[bold magenta]🚀 Starting Structured Agent Test[/bold magenta]")
-    console.print("─" * 60)
 
-    agent = StructuredAgent()
+    agent = StructuredAgent(user_id="259137")
 
     # Test query
     test_prompt = "Give me the top 5 questions with their correct answers"
 
-    # Create a nice header for the test
-    header_panel = Panel(
-        f"[bold white]{test_prompt}[/bold white]",
-        title="[bold green]📊 Test Query[/bold green]",
-        border_style="green"
-    )
-    console.print(header_panel)
-
     step_count = 0
-    # response = agent.invoke(test_prompt)
-    # print(response['structured_response'])
-    response = agent.query(test_prompt)
-    print('\n\nStructured Output')
-
-    json_text = extract_json_from_content(response.content)
-    insight_response = InsightResponse(**json_text)
-    pretty_print_content(insight_response.items)
-    # console.print("\n[bold magenta]✅ Agent test completed![/bold magenta]")
-    # console.print("─" * 60)
-
-    # # Test the full content display with your example
-    # console.print("\n[bold cyan]🧪 Testing Full Content Display[/bold cyan]")
-    # test_message_content = """[{'text': "Hello! I'd be happy to help you analyze the top 5 questions with their accuracy rates from your data warehouse.\\n\\nLet me query the data to find the questions with the highest accuracy rates.", 'type': 'text'}, {'id': 'toolu_016tZsumo166582BsiAoqcGV', 'input': {'sql': "SELECT \\n    slide_title,\\n    COUNT(*) as total_answers,\\n    SUM(CASE WHEN correct = true THEN 1 ELSE 0 END) as correct_answers,\\n    ROUND(SUM(CASE WHEN correct = true THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 2) as accuracy_rate\\nFROM answers\\nWHERE slide_type IN ('Pick Answer', 'Poll')\\nGROUP BY slide_title\\nHAVING COUNT(*) >= 10\\nORDER BY accuracy_rate DESC, total_answers DESC\\nLIMIT 5"}, 'name': 'run_query_tool', 'type': 'tool_use'}]"""
-
-    # pretty_print_message(test_message_content)
-
-    # # Test table response display
-    # console.print("\n[bold cyan]🧪 Testing Table Response Display[/bold cyan]")
-
-    # # Create a mock InsightResponse with table data
-    # from structured_agent import InsightResponse, TableItem, MessageItem
-
-    # # Sample table data (like what would come from a query result)
-    # table_response = InsightResponse(
-    #     items=[
-    #         MessageItem(
-    #             type="message",
-    #             content="Here are the top 5 questions with their accuracy rates:"
-    #         ),
-    #         TableItem(
-    #             type="table",
-    #             title="Top 5 Questions by Accuracy Rate",
-    #             data={
-    #                 "slide_title": [
-    #                     "Who is this lady or gentleman?",
-    #                     "Remember the wishes for Santa?",
-    #                     "Who is this handsome redhead?",
-    #                     "Steps to process requests",
-    #                     "Match principle with their meaning"
-    #                 ],
-    #                 "total_answers": [801, 54, 43, 45, 34],
-    #                 "correct_answers": [327, 48, 37, 33, 28],
-    #                 "accuracy_rate": [40.82, 88.89, 86.05, 73.33, 82.35]
-    #             }
-    #         )
-    #     ]
-    # )
-
-    # pretty_print_response(table_response)
-
-    # # Test chart response display
-    # console.print("\n[bold cyan]🧪 Testing Chart Response Display[/bold cyan]")
-
-    # from structured_agent import ChartItem
-
-    # # Sample chart data
-    # chart_response = InsightResponse(
-    #     items=[
-    #         MessageItem(
-    #             type="message",
-    #             content="Here's a visualization of the accuracy rates:"
-    #         ),
-    #         ChartItem(
-    #             type="chart",
-    #             title="Question Accuracy Rates",
-    #             chart_type="bar",
-    #             data={
-    #                 "questions": [
-    #                     "Who is this lady?",
-    #                     "Remember Santa?",
-    #                     "Handsome redhead?",
-    #                     "Process requests",
-    #                     "Match principles"
-    #                 ],
-    #                 "accuracy": [40.82, 88.89, 86.05, 73.33, 82.35]
-    #             }
-    #         )
-    #     ]
-    # )
-
-    # pretty_print_response(chart_response)
+    for step in agent.stream_query(test_prompt):
+        print(f'\n' + '-' * 100 + '\n')
+        print(step)
+        last_message = step["messages"][-1]
+    print('\n\nStructured Output', agent.get_structured_output())
 
 
