@@ -234,6 +234,125 @@ class PresentationData:
 
         return table_data
 
+    def get_participant_performance_stats(self):
+        """
+        Return participant-level performance statistics
+        """
+        participant_df = self.df.copy()
+        participant_df['CorrectCount'] = participant_df['Correct'].apply(lambda r: 1 if r else 0)
+
+        # Group by participant to calculate metrics
+        participant_stats = participant_df.groupby('Participant Id').agg({
+            'Id': 'count',  # Total submissions
+            'CorrectCount': 'sum',  # Correct answers
+            'Answer Time Seconds': 'mean',  # Average response time
+            'Created At': ['min', 'max'],  # First and last activity
+            'Slide Id': 'nunique'  # Number of unique slides answered
+        }).reset_index()
+
+        # Flatten column names
+        participant_stats.columns = ['Participant Id', 'Total Submissions', 'Correct Answers',
+                                   'Avg Response Time', 'First Activity', 'Last Activity', 'Slides Answered']
+
+        # Calculate metrics
+        total_slides = self.get_total_slides_count()
+        participant_stats['Response Rate'] = (participant_stats['Slides Answered'] / total_slides) * 100
+        participant_stats['Accuracy'] = (participant_stats['Correct Answers'] / participant_stats['Total Submissions']) * 100
+
+        # Determine status based on response rate
+        def get_participant_status(response_rate):
+            if response_rate >= 90:
+                return "Active"
+            elif response_rate >= 50:
+                return "Moderate"
+            else:
+                return "Inactive"
+
+        participant_stats['Status'] = participant_stats['Response Rate'].apply(get_participant_status)
+
+        # Sort by response rate descending
+        participant_stats = participant_stats.sort_values('Response Rate', ascending=False).reset_index(drop=True)
+
+        return participant_stats
+
+    def get_participant_engagement_summary(self):
+        """
+        Return summary metrics for participant engagement
+        """
+        participant_stats = self.get_participant_performance_stats()
+
+        active_participants = len(participant_stats[participant_stats['Status'] == 'Active'])
+        avg_response_rate = participant_stats['Response Rate'].mean()
+        avg_response_time = participant_stats['Avg Response Time'].mean()
+        total_qa_questions = self.df[self.df['Slide Type'].isin(['Pick Answer', 'Type Answer'])]['Slide Id'].nunique()
+
+        return {
+            'active_participants': active_participants,
+            'avg_response_rate': avg_response_rate,
+            'avg_response_time': avg_response_time,
+            'total_qa_questions': total_qa_questions
+        }
+
+    def get_participant_performance_table(self):
+        """
+        Return formatted participant performance table ready for display
+        """
+        participant_stats = self.get_participant_performance_stats()
+
+        # Get slide engagement data to find most/least engaged slides
+        slide_stats = self.get_slides_engagement_stats()
+        most_engaged_slide = slide_stats.loc[slide_stats['Engagement Rate'].idxmax()]
+        least_engaged_slide = slide_stats.loc[slide_stats['Engagement Rate'].idxmin()]
+
+        table_data = []
+        for _, participant in participant_stats.iterrows():
+            participant_id = participant['Participant Id']
+            status = participant['Status']
+            response_rate = participant['Response Rate']
+            total_submissions = participant['Total Submissions']
+            slides_answered = participant['Slides Answered']
+            accuracy = participant['Accuracy']
+            avg_response_time = participant['Avg Response Time']
+            first_activity = participant['First Activity']
+            last_activity = participant['Last Activity']
+
+            # Format times
+            import pandas as pd
+            if pd.notna(first_activity):
+                joined_time = pd.to_datetime(first_activity).strftime('%H:%M')
+            else:
+                joined_time = "N/A"
+
+            if pd.notna(last_activity):
+                last_time = pd.to_datetime(last_activity).strftime('%H:%M AM')
+            else:
+                last_time = "N/A"
+
+            # Determine most/least engaged slide for this participant
+            participant_data = self.df[self.df['Participant Id'] == participant_id]
+            if not participant_data.empty:
+                # Get slides this participant answered
+                participant_slides = participant_data['Slide Order'].unique()
+                most_slide = f"Slide {int(most_engaged_slide['Slide Order'])}"
+                least_slide = f"Slide {int(least_engaged_slide['Slide Order'])}"
+            else:
+                most_slide = "N/A"
+                least_slide = "N/A"
+
+            table_data.append({
+                "Participant": f"Participant {participant_id}",
+                "Email": f"participant{participant_id}@company.com",  # Mock email
+                "Status": status,
+                "Response Rate": f"{response_rate:.0f}% ({slides_answered}/{self.get_total_slides_count()})",
+                "Accuracy": f"{accuracy:.0f}%" if pd.notna(accuracy) else "N/A",
+                "Avg Response Time": f"{avg_response_time:.1f}s",
+                "Q&A Questions": int(total_submissions),
+                "Most/Least Engaged": f"👍 {most_slide}\n💤 {least_slide}",
+                "Session Time": f"Joined: {joined_time}\nLast: {last_time}"
+            })
+
+        return table_data
+
 
 # def get_presentations_stats(user_id: int):
 #     sql = f"""

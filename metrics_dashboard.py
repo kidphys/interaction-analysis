@@ -287,12 +287,144 @@ with tab2:
         st.warning("Please select a presentation to view slide performance details.")
 
 with tab3:
-    st.markdown("## 👥 Participant Dashboard")
-    st.info("Participant engagement patterns and demographics will be displayed here.")
-    st.markdown("### Coming Soon")
-    st.markdown("- Participant journey tracking")
-    st.markdown("- Engagement heatmaps")
-    st.markdown("- Demographic breakdowns")
+    if presentation_id:
+        prez_data_tab3 = PresentationData(presentation_id)
+
+        # Header with back button
+        col_back, col_title = st.columns([1, 4])
+        with col_back:
+            # Create a clickable back button using HTML/JavaScript
+            st.markdown("""
+                <script>
+                function goBackToDashboard() {
+                    // Find the Overview tab and click it
+                    const tabs = document.querySelectorAll('[data-testid="stTabs"] button');
+                    if (tabs.length > 0) {
+                        tabs[0].click(); // Click the first tab (Overview)
+                    }
+                }
+                </script>
+                <button onclick="goBackToDashboard()" style="
+                    background: none;
+                    border: none;
+                    color: #666;
+                    cursor: pointer;
+                    font-size: 14px;
+                    padding: 5px 0;
+                    text-decoration: none;
+                    display: flex;
+                    align-items: center;
+                    gap: 5px;
+                ">
+                    ← Back to Dashboard
+                </button>
+            """, unsafe_allow_html=True)
+        with col_title:
+            st.markdown("## Participant Performance")
+            total_participants = prez_data_tab3.total_participants
+            st.markdown(f"*Individual performance metrics for all {total_participants} participants*")
+
+        st.markdown("---")
+
+        # Get summary metrics
+        summary_metrics = prez_data_tab3.get_participant_engagement_summary()
+
+        # Top 4 metric cards
+        col1, col2, col3, col4 = st.columns(4)
+
+        with col1:
+            st.metric(
+                label="👥 Active Participants",
+                value=f"{summary_metrics['active_participants']}"
+            )
+            st_show_sub_header_grey_text("≥90% response rate")
+
+        with col2:
+            st.metric(
+                label="🎯 Avg Response Rate",
+                value=f"{summary_metrics['avg_response_rate']:.0f}%"
+            )
+            st_show_sub_header_grey_text("Average across all participants")
+
+        with col3:
+            st.metric(
+                label="⏱️ Avg Response Time",
+                value=f"{summary_metrics['avg_response_time']:.1f}s"
+            )
+            st_show_sub_header_grey_text("Average across all answers")
+
+        with col4:
+            st.metric(
+                label="💬 Total Q&A Questions",
+                value=f"{summary_metrics['total_qa_questions']}"
+            )
+            st_show_sub_header_grey_text("Interactive slides")
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # Search and sort controls
+        col_search, col_sort = st.columns([2, 1])
+
+        with col_search:
+            search_term = st.text_input("🔍", placeholder="Search participants...", label_visibility="collapsed", key="participants_search")
+
+        with col_sort:
+            sort_options = ["Response Rate", "Accuracy", "Response Time"]
+            sort_by = st.selectbox("Sort by:", options=sort_options, key="participants_sort")
+
+        st.markdown("---")
+
+        # Participant performance table
+        st.markdown("### Participant Performance Details")
+
+        # Get formatted table data from warehouse
+        all_table_data = prez_data_tab3.get_participant_performance_table()
+
+        # Filter table data based on search term
+        table_data = []
+        if search_term:
+            for row in all_table_data:
+                if (search_term.lower() in row['Participant'].lower() or
+                    search_term.lower() in row['Email'].lower()):
+                    table_data.append(row)
+        else:
+            table_data = all_table_data
+
+        # Sort the data based on selected sort option
+        if table_data:
+            if sort_by == "Response Rate":
+                table_data.sort(key=lambda x: float(x['Response Rate'].split('%')[0]), reverse=True)
+            elif sort_by == "Accuracy":
+                table_data.sort(key=lambda x: float(x['Accuracy'].split('%')[0]) if x['Accuracy'] != "N/A" else 0, reverse=True)
+            elif sort_by == "Response Time":
+                table_data.sort(key=lambda x: float(x['Avg Response Time'].split('s')[0]))
+
+        # Display table
+        if table_data:
+            import pandas as pd
+            df_display = pd.DataFrame(table_data)
+
+            # Style the dataframe for better display
+            st.dataframe(
+                df_display,
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "Participant": st.column_config.TextColumn("Participant", width="medium"),
+                    "Email": st.column_config.TextColumn("Email", width="medium"),
+                    "Status": st.column_config.TextColumn("Status", width="small"),
+                    "Response Rate": st.column_config.TextColumn("Response Rate", width="medium"),
+                    "Accuracy": st.column_config.TextColumn("Accuracy", width="small"),
+                    "Avg Response Time": st.column_config.TextColumn("Avg Response Time", width="medium"),
+                    "Q&A Questions": st.column_config.NumberColumn("Q&A Questions", width="small"),
+                    "Most/Least Engaged": st.column_config.TextColumn("Most/Least Engaged", width="medium"),
+                    "Session Time": st.column_config.TextColumn("Session Time", width="medium")
+                }
+            )
+        else:
+            st.info("No participants found matching your search criteria.")
+    else:
+        st.warning("Please select a presentation to view participant performance details.")
 
 with tab4:
     st.markdown("## 📈 Trends Dashboard")
