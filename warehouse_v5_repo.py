@@ -127,19 +127,23 @@ def get_all_answers_full(presentation_id):
     dp.title as presentation_title,
     dq.slide_title,
     dq.slide_order,
-    fa.slide_type
+    fa.slide_type,
+    dpa.name,
+    dpa.email
     FROM aha_report_v5.fact_answers fa
     JOIN aha_report_v5.dim_presentations dp
         ON fa.master_presentation_id = dp.id
     JOIN aha_report_v5.dim_questions dq
         ON fa.slide_id = dq.id
+    JOIN aha_report_v5.dim_participants dpa
+        ON fa.participant_id = dpa.participant_id
     LEFT JOIN aha_report_v5.dim_deleted_answers dda
         ON fa.id = dda.id
     WHERE fa.master_presentation_id = {presentation_id}
     AND dda.id IS NULL
     """
     rows = execute(sql)
-    return pd.DataFrame(rows, columns=['Id', 'Slide Id', 'Participant Id', 'Created At', 'Correct', 'Answer Time Seconds', 'Answer Text', 'Presentation Title', 'Slide Title', 'Slide Order', 'Slide Type'])
+    return pd.DataFrame(rows, columns=['Id', 'Slide Id', 'Participant Id', 'Created At', 'Correct', 'Answer Time Seconds', 'Answer Text', 'Presentation Title', 'Slide Title', 'Slide Order', 'Slide Type', 'Participant Name', 'Participant Email'])
 
 class PresentationData:
 
@@ -242,7 +246,7 @@ class PresentationData:
         participant_df['CorrectCount'] = participant_df['Correct'].apply(lambda r: 1 if r else 0)
 
         # Group by participant to calculate metrics
-        participant_stats = participant_df.groupby('Participant Id').agg({
+        participant_stats = participant_df.groupby(['Participant Id', 'Participant Name', 'Participant Email']).agg({
             'Id': 'count',  # Total submissions
             'CorrectCount': 'sum',  # Correct answers
             'Answer Time Seconds': 'mean',  # Average response time
@@ -251,7 +255,7 @@ class PresentationData:
         }).reset_index()
 
         # Flatten column names
-        participant_stats.columns = ['Participant Id', 'Total Submissions', 'Correct Answers',
+        participant_stats.columns = ['Participant Id', 'Participant Name', 'Participant Email', 'Total Submissions', 'Correct Answers',
                                    'Avg Response Time', 'First Activity', 'Last Activity', 'Slides Answered']
 
         # Calculate metrics
@@ -281,7 +285,7 @@ class PresentationData:
         """
         participant_stats = self.get_participant_performance_stats()
 
-        active_participants = len(participant_stats[participant_stats['Status'] == 'Active'])
+        active_participants = len(participant_stats[participant_stats['Status'] != 'Inactive'])
         avg_response_rate = participant_stats['Response Rate'].mean()
         avg_response_time = participant_stats['Avg Response Time'].mean()
         total_qa_questions = self.df[self.df['Slide Type'].isin(['Pick Answer', 'Type Answer'])]['Slide Id'].nunique()
@@ -340,8 +344,8 @@ class PresentationData:
                 least_slide = "N/A"
 
             table_data.append({
-                "Participant": f"Participant {participant_id}",
-                "Email": f"participant{participant_id}@company.com",  # Mock email
+                "Participant": f"{participant['Participant Name']}",
+                "Email": f"{participant['Participant Email']}",
                 "Status": status,
                 "Response Rate": f"{response_rate:.0f}% ({slides_answered}/{self.get_total_slides_count()})",
                 "Accuracy": f"{accuracy:.0f}%" if pd.notna(accuracy) else "N/A",
