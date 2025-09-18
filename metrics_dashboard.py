@@ -136,65 +136,41 @@ with tab1:
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # Slide 1
-    with st.expander("**Slide 1: What is your primary learning goal today?** | Multiple Choice", expanded=False):
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            st.metric("👥 Participants", "156/179")
-        with col2:
-            st.metric("💬 Submissions", "156")
-        with col3:
-            st.metric("⏱️ Avg Time", "5.2s")
-        with col4:
-            st.metric("📊 Engagement", "94%", delta="Good", delta_color="normal")
+    slide_stats_df = prez_data.get_slides_engagement_stats()
 
-    # Slide 2
-    with st.expander("**Slide 2: Rate your current confidence level** | AI Generated | Poll", expanded=False):
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            st.metric("👥 Participants", "145/179")
-        with col2:
-            st.metric("💬 Submissions", "145")
-        with col3:
-            st.metric("⏱️ Avg Time", "3.8s")
-        with col4:
-            st.metric("📊 Engagement", "81%", delta="Attention", delta_color="inverse")
+    # Dynamic slide expanders from dataframe
+    for index, slide in slide_stats_df.iterrows():
+        slide_index = index + 1  # Use 1-based index instead of slide ID
+        slide_title = slide['Slide Title']
+        participants = int(slide['Participant Id'])
+        avg_time = slide['Answer Time Seconds']
+        engagement_rate = slide['Engagement Rate']
 
-    # Slide 3
-    with st.expander("**Slide 3: Share one word to describe your mood** | Word Cloud", expanded=False):
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            st.metric("👥 Participants", "168/179")
-        with col2:
-            st.metric("💬 Submissions", "168")
-        with col3:
-            st.metric("⏱️ Avg Time", "2.1s")
-        with col4:
-            st.metric("📊 Engagement", "94%", delta="Excellent", delta_color="normal")
+        # Determine engagement status and color
+        if engagement_rate >= 90:
+            status = "Excellent"
+            status_color = "normal"
+        elif engagement_rate >= 80:
+            status = "Good"
+            status_color = "normal"
+        elif engagement_rate >= 60:
+            status = "Attention"
+            status_color = "inverse"
+        else:
+            status = "Needs Work"
+            status_color = "inverse"
 
-    # Slide 4
-    with st.expander("**Slide 4: How would you rate today's session?** | Rating Scale", expanded=False):
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            st.metric("👥 Participants", "142/179")
-        with col2:
-            st.metric("💬 Submissions", "142")
-        with col3:
-            st.metric("⏱️ Avg Time", "4.7s")
-        with col4:
-            st.metric("📊 Engagement", "79%", delta="Needs Work", delta_color="inverse")
-
-    # Slide 5
-    with st.expander("**Slide 5: What topic would you like to explore next?** | Open Text", expanded=False):
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            st.metric("👥 Participants", "134/179")
-        with col2:
-            st.metric("💬 Submissions", "134")
-        with col3:
-            st.metric("⏱️ Avg Time", "8.3s")
-        with col4:
-            st.metric("📊 Engagement", "75%", delta="Average", delta_color="off")
+        # Create expander with slide information using index instead of slide ID
+        with st.expander(f"**Slide {slide_index}: {slide_title}**", expanded=False):
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                st.metric("👥 Participants", f"{participants}/{total_joined}")
+            with col2:
+                st.metric("💬 Submissions", f"{participants}")
+            with col3:
+                st.metric("⏱️ Avg Time", f"{avg_time:.1f}s")
+            with col4:
+                st.metric("📊 Engagement", f"{engagement_rate:.1f}%", delta=status, delta_color=status_color)
 
 with tab2:
     # Header with back button (simulated)

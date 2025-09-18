@@ -157,11 +157,13 @@ class PresentationData:
         return self.get_total_participants_submitted() / self.total_participants * 100
 
     def get_slides_engagement_stats(self):
-        slide_df = self.df.groupby(['Slide Id', 'Slide Title']).agg({
+        slide_df = self.df.groupby(['Slide Id', 'Slide Title', 'Slide Order']).agg({
             'Participant Id': 'nunique',
             'Answer Time Seconds': 'mean'
         }).reset_index()
         slide_df['Engagement Rate'] = slide_df['Participant Id'] / self.total_participants * 100
+        # Sort by slide order to maintain proper sequence
+        slide_df = slide_df.sort_values('Slide Order').reset_index(drop=True)
         return slide_df
 
     def get_most_engaging_slide(self):
