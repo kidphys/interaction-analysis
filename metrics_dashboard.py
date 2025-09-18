@@ -142,6 +142,7 @@ with tab1:
     for index, slide in slide_stats_df.iterrows():
         slide_index = index + 1  # Use 1-based index instead of slide ID
         slide_title = slide['Slide Title']
+        slide_type = slide['Slide Type']
         participants = int(slide['Participant Id'])
         avg_time = slide['Answer Time Seconds']
         engagement_rate = slide['Engagement Rate']
@@ -160,8 +161,9 @@ with tab1:
             status = "Needs Work"
             status_color = "inverse"
 
-        # Create expander with slide information using index instead of slide ID
-        with st.expander(f"**Slide {slide_index}: {slide_title}**", expanded=False):
+        # Create expander with slide information and type bubble
+        expander_header = f"**Slide {slide_index}: {slide_title}** | {slide_type}"
+        with st.expander(expander_header, expanded=False):
             col1, col2, col3, col4 = st.columns(4)
             with col1:
                 st.metric("👥 Participants", f"{participants}/{total_joined}")
@@ -173,273 +175,113 @@ with tab1:
                 st.metric("📊 Engagement", f"{engagement_rate:.1f}%", delta=status, delta_color=status_color)
 
 with tab2:
-    # Header with back button (simulated)
-    col_back, col_title = st.columns([1, 4])
-    with col_back:
-        st.markdown("← Back to Dashboard")
-    with col_title:
-        st.markdown("## Slides Performance")
-        st.markdown("*Performance metrics for all 6 slides in this session*")
+    if presentation_id:
+        prez_data_tab2 = PresentationData(presentation_id)
+        slide_stats_df_tab2 = prez_data_tab2.get_slides_engagement_stats()
+        total_joined_tab2 = get_total_participants_joined(presentation_id)
 
-    st.markdown("---")
+        # Header with back button (simulated)
+        col_back, col_title = st.columns([1, 4])
+        with col_back:
+            st.markdown("← Back to Dashboard")
+        with col_title:
+            st.markdown("## Slides Performance")
+            total_slides_tab2 = len(slide_stats_df_tab2)
+            st.markdown(f"*Performance metrics for all {total_slides_tab2} slides in this session*")
 
-    # Top 4 metric cards
-    col1, col2, col3, col4 = st.columns(4)
+        st.markdown("---")
 
-    with col1:
-        st.markdown(
-            '<div style="background: white; padding: 20px; border-radius: 10px; border: 1px solid #e0e0e0;">'
-            '<div style="display: flex; align-items: center; margin-bottom: 10px;">'
-            '<div style="background: #4CAF50; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; margin-right: 15px;">'
-            '<span style="color: white; font-size: 20px;">📊</span>'
-            '</div>'
-            '<div>'
-            '<div style="font-size: 32px; font-weight: bold; color: #333;">77%</div>'
-            '<div style="color: #666; font-size: 14px;">Avg Engagement</div>'
-            '</div>'
-            '</div>'
-            '</div>',
-            unsafe_allow_html=True
-        )
+        # Calculate aggregated metrics
+        avg_engagement = slide_stats_df_tab2['Engagement Rate'].mean()
+        avg_participation = (slide_stats_df_tab2['Participant Id'].sum() / total_joined_tab2) / len(slide_stats_df_tab2) * 100
+        avg_response_time = slide_stats_df_tab2['Answer Time Seconds'].mean()
+        slides_need_attention = len(slide_stats_df_tab2[slide_stats_df_tab2['Engagement Rate'] < 60])
 
-    with col2:
-        st.markdown(
-            '<div style="background: white; padding: 20px; border-radius: 10px; border: 1px solid #e0e0e0;">'
-            '<div style="display: flex; align-items: center; margin-bottom: 10px;">'
-            '<div style="background: #E91E63; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; margin-right: 15px;">'
-            '<span style="color: white; font-size: 20px;">👥</span>'
-            '</div>'
-            '<div>'
-            '<div style="font-size: 32px; font-weight: bold; color: #333;">73%</div>'
-            '<div style="color: #666; font-size: 14px;">Avg Participation</div>'
-            '</div>'
-            '</div>'
-            '</div>',
-            unsafe_allow_html=True
-        )
+        # Top 4 metric cards with real data
+        col1, col2, col3, col4 = st.columns(4)
 
-    with col3:
-        st.markdown(
-            '<div style="background: white; padding: 20px; border-radius: 10px; border: 1px solid #e0e0e0;">'
-            '<div style="display: flex; align-items: center; margin-bottom: 10px;">'
-            '<div style="background: #9C27B0; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; margin-right: 15px;">'
-            '<span style="color: white; font-size: 20px;">⏱️</span>'
-            '</div>'
-            '<div>'
-            '<div style="font-size: 32px; font-weight: bold; color: #333;">6.5s</div>'
-            '<div style="color: #666; font-size: 14px;">Avg Response Time</div>'
-            '</div>'
-            '</div>'
-            '</div>',
-            unsafe_allow_html=True
-        )
+        with col1:
+            st.metric(
+                label="📊 Avg Engagement",
+                value=f"{avg_engagement:.0f}%"
+            )
+            st_show_sub_header_grey_text("Across all slides")
 
-    with col4:
-        st.markdown(
-            '<div style="background: white; padding: 20px; border-radius: 10px; border: 1px solid #e0e0e0;">'
-            '<div style="display: flex; align-items: center; margin-bottom: 10px;">'
-            '<div style="background: #F44336; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; margin-right: 15px;">'
-            '<span style="color: white; font-size: 20px;">⚠️</span>'
-            '</div>'
-            '<div>'
-            '<div style="font-size: 32px; font-weight: bold; color: #333;">2</div>'
-            '<div style="color: #666; font-size: 14px;">Need Attention</div>'
-            '</div>'
-            '</div>'
-            '</div>',
-            unsafe_allow_html=True
-        )
+        with col2:
+            st.metric(
+                label="👥 Avg Participation",
+                value=f"{avg_participation:.0f}%"
+            )
+            st_show_sub_header_grey_text("Average per slide")
 
-    st.markdown("<br>", unsafe_allow_html=True)
+        with col3:
+            st.metric(
+                label="⏱️ Avg Response Time",
+                value=f"{avg_response_time:.1f}s"
+            )
+            st_show_sub_header_grey_text("Across all answers")
 
-    # Search and sort controls
-    col_search, col_sort = st.columns([2, 1])
+        with col4:
+            st.metric(
+                label="⚠️ Need Attention",
+                value=f"{slides_need_attention}"
+            )
+            st_show_sub_header_grey_text("<60% engagement")
 
-    with col_search:
-        search_term = st.text_input("🔍", placeholder="Search slides...", label_visibility="collapsed")
+        st.markdown("<br>", unsafe_allow_html=True)
 
-    with col_sort:
-        st.markdown("**Sort by:**")
-        col_sort1, col_sort2, col_sort3 = st.columns(3)
-        with col_sort1:
-            if st.button("Engagement", key="sort_engagement", type="primary"):
-                st.session_state.sort_by = "engagement"
-        with col_sort2:
-            if st.button("Participation", key="sort_participation"):
-                st.session_state.sort_by = "participation"
-        with col_sort3:
-            if st.button("Response Time", key="sort_response"):
-                st.session_state.sort_by = "response_time"
+        # Search control
+        search_term = st.text_input("🔍", placeholder="Search slides...", label_visibility="collapsed", key="slides_search")
 
-    st.markdown("---")
+        st.markdown("---")
 
-    # Slide performance table
-    st.markdown("### Slide Performance Details")
+        # Slide performance table
+        st.markdown("### Slide Performance Details")
 
-    # Table header
-    st.markdown(
-        '<div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 10px;">'
-        '<div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr; gap: 20px; font-weight: bold; color: #666;">'
-        '<div>Slide</div>'
-        '<div>Type</div>'
-        '<div>Engagement Rate</div>'
-        '<div>Participation</div>'
-        '<div>Response Time</div>'
-        '<div>Accuracy</div>'
-        '<div>Submissions</div>'
-        '<div>Status</div>'
-        '</div>'
-        '</div>',
-        unsafe_allow_html=True
-    )
+        # Filter slides based on search term
+        filtered_slides = slide_stats_df_tab2.copy()
+        if search_term:
+            filtered_slides = filtered_slides[filtered_slides['Slide Title'].str.contains(search_term, case=False, na=False)]
 
-    # Slide 3 - Word Cloud (Best performing)
-    st.markdown(
-        '<div style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #e0e0e0; margin-bottom: 10px;">'
-        '<div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr; gap: 20px; align-items: center;">'
-        '<div>'
-        '<div style="font-weight: bold; font-size: 16px;">Slide 3:</div>'
-        '<div style="color: #666;">Share one word to describe your mood</div>'
-        '</div>'
-        '<div style="background: #f0f0f0; padding: 4px 8px; border-radius: 4px; font-size: 12px;">Word Cloud</div>'
-        '<div style="color: #4CAF50; font-weight: bold; font-size: 18px;">● 97%</div>'
-        '<div>'
-        '<div style="font-weight: bold;">94%</div>'
-        '<div style="font-size: 12px; color: #666;">168/179</div>'
-        '</div>'
-        '<div style="font-weight: bold;">2.1s</div>'
-        '<div>N/A</div>'
-        '<div>'
-        '<div style="font-weight: bold;">168</div>'
-        '<div style="font-size: 12px; color: #666;">+45 reactions</div>'
-        '</div>'
-        '<div>'
-        '<span style="background: #4CAF50; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px;">Good</span>'
-        '<button style="background: #E91E63; color: white; border: none; padding: 6px 12px; border-radius: 4px; margin-left: 8px; font-size: 12px;">📊 View Details</button>'
-        '</div>'
-        '</div>'
-        '</div>',
-        unsafe_allow_html=True
-    )
+        # Prepare data for table display
+        table_data = []
+        for index, slide in filtered_slides.iterrows():
+            slide_index = slide['Slide Order']
+            slide_title = slide['Slide Title']
+            slide_type = slide['Slide Type']
+            participants = int(slide['Participant Id'])
+            avg_time = slide['Answer Time Seconds']
+            engagement_rate = slide['Engagement Rate']
 
-    # Slide 1 - Multiple Choice
-    st.markdown(
-        '<div style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #e0e0e0; margin-bottom: 10px;">'
-        '<div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr; gap: 20px; align-items: center;">'
-        '<div>'
-        '<div style="font-weight: bold; font-size: 16px;">Slide 1:</div>'
-        '<div style="color: #666;">What is your primary learning goal today?</div>'
-        '</div>'
-        '<div style="background: #f0f0f0; padding: 4px 8px; border-radius: 4px; font-size: 12px;">Multiple Choice</div>'
-        '<div style="color: #4CAF50; font-weight: bold; font-size: 18px;">● 94%</div>'
-        '<div>'
-        '<div style="font-weight: bold;">87%</div>'
-        '<div style="font-size: 12px; color: #666;">156/179</div>'
-        '</div>'
-        '<div style="font-weight: bold;">5.2s</div>'
-        '<div style="background: #E3F2FD; color: #1976D2; padding: 4px 8px; border-radius: 4px; font-size: 12px;">91%</div>'
-        '<div>'
-        '<div style="font-weight: bold;">156</div>'
-        '<div style="font-size: 12px; color: #666;">+23 reactions</div>'
-        '</div>'
-        '<div>'
-        '<span style="background: #4CAF50; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px;">Good</span>'
-        '<button style="background: #E91E63; color: white; border: none; padding: 6px 12px; border-radius: 4px; margin-left: 8px; font-size: 12px;">📊 View Details</button>'
-        '</div>'
-        '</div>'
-        '</div>',
-        unsafe_allow_html=True
-    )
+            # Determine engagement status
+            if engagement_rate >= 90:
+                status = "🟢 Excellent"
+            elif engagement_rate >= 80:
+                status = "🟢 Good"
+            elif engagement_rate >= 60:
+                status = "🟡 Attention"
+            else:
+                status = "🔴 Needs Work"
 
-    # Slide 2 - Poll (Needs attention)
-    st.markdown(
-        '<div style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #e0e0e0; margin-bottom: 10px;">'
-        '<div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr; gap: 20px; align-items: center;">'
-        '<div>'
-        '<div style="font-weight: bold; font-size: 16px;">Slide 2:</div>'
-        '<div style="color: #666;">Rate your current confidence level</div>'
-        '</div>'
-        '<div>'
-        '<span style="background: #9C27B0; color: white; padding: 4px 8px; border-radius: 4px; font-size: 10px;">✨ AI Generated</span>'
-        '<span style="background: #f0f0f0; padding: 4px 8px; border-radius: 4px; font-size: 12px; margin-left: 4px;">Poll</span>'
-        '</div>'
-        '<div style="color: #FF9800; font-weight: bold; font-size: 18px;">● 81%</div>'
-        '<div>'
-        '<div style="font-weight: bold;">81%</div>'
-        '<div style="font-size: 12px; color: #666;">145/179</div>'
-        '</div>'
-        '<div style="font-weight: bold;">3.8s</div>'
-        '<div style="background: #FFF3E0; color: #F57C00; padding: 4px 8px; border-radius: 4px; font-size: 12px;">75%</div>'
-        '<div>'
-        '<div style="font-weight: bold;">145</div>'
-        '<div style="font-size: 12px; color: #666;">+18 reactions</div>'
-        '</div>'
-        '<div>'
-        '<span style="background: #FF9800; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px;">Attention</span>'
-        '<button style="background: #E91E63; color: white; border: none; padding: 6px 12px; border-radius: 4px; margin-left: 8px; font-size: 12px;">📊 View Details</button>'
-        '</div>'
-        '</div>'
-        '</div>',
-        unsafe_allow_html=True
-    )
+            table_data.append({
+                "Slide": f"Slide {slide_index}: {slide_title}",
+                "Type": slide_type,
+                "Engagement Rate": f"{engagement_rate:.1f}%",
+                "Participation": f"{(participants/total_joined_tab2*100):.0f}% ({participants}/{total_joined_tab2})",
+                "Response Time": f"{avg_time:.1f}s",
+                "Submissions": f"{participants}",
+                "Status": status
+            })
 
-    # Slide 4 - Rating Scale (Needs attention)
-    st.markdown(
-        '<div style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #e0e0e0; margin-bottom: 10px;">'
-        '<div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr; gap: 20px; align-items: center;">'
-        '<div>'
-        '<div style="font-weight: bold; font-size: 16px;">Slide 4:</div>'
-        '<div style="color: #666;">How would you rate today\'s session?</div>'
-        '</div>'
-        '<div style="background: #f0f0f0; padding: 4px 8px; border-radius: 4px; font-size: 12px;">Rating Scale</div>'
-        '<div style="color: #F44336; font-weight: bold; font-size: 18px;">● 79%</div>'
-        '<div>'
-        '<div style="font-weight: bold;">79%</div>'
-        '<div style="font-size: 12px; color: #666;">142/179</div>'
-        '</div>'
-        '<div style="font-weight: bold;">4.7s</div>'
-        '<div style="background: #FFEBEE; color: #D32F2F; padding: 4px 8px; border-radius: 4px; font-size: 12px;">68%</div>'
-        '<div>'
-        '<div style="font-weight: bold;">142</div>'
-        '<div style="font-size: 12px; color: #666;">+12 reactions</div>'
-        '</div>'
-        '<div>'
-        '<span style="background: #F44336; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px;">Needs Work</span>'
-        '<button style="background: #E91E63; color: white; border: none; padding: 6px 12px; border-radius: 4px; margin-left: 8px; font-size: 12px;">📊 View Details</button>'
-        '</div>'
-        '</div>'
-        '</div>',
-        unsafe_allow_html=True
-    )
-
-    # Slide 5 - Open Text
-    st.markdown(
-        '<div style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #e0e0e0; margin-bottom: 10px;">'
-        '<div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr; gap: 20px; align-items: center;">'
-        '<div>'
-        '<div style="font-weight: bold; font-size: 16px;">Slide 5:</div>'
-        '<div style="color: #666;">What topic would you like to explore next?</div>'
-        '</div>'
-        '<div style="background: #f0f0f0; padding: 4px 8px; border-radius: 4px; font-size: 12px;">Open Text</div>'
-        '<div style="color: #FF9800; font-weight: bold; font-size: 18px;">● 75%</div>'
-        '<div>'
-        '<div style="font-weight: bold;">75%</div>'
-        '<div style="font-size: 12px; color: #666;">134/179</div>'
-        '</div>'
-        '<div style="font-weight: bold;">8.3s</div>'
-        '<div>N/A</div>'
-        '<div>'
-        '<div style="font-weight: bold;">134</div>'
-        '<div style="font-size: 12px; color: #666;">+31 reactions</div>'
-        '</div>'
-        '<div>'
-        '<span style="background: #9E9E9E; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px;">Average</span>'
-        '<button style="background: #E91E63; color: white; border: none; padding: 6px 12px; border-radius: 4px; margin-left: 8px; font-size: 12px;">📊 View Details</button>'
-        '</div>'
-        '</div>'
-        '</div>',
-        unsafe_allow_html=True
-    )
+        # Display table
+        if table_data:
+            import pandas as pd
+            df_display = pd.DataFrame(table_data)
+            st.dataframe(df_display, use_container_width=True, hide_index=True)
+        else:
+            st.info("No slides found matching your search criteria.")
+    else:
+        st.warning("Please select a presentation to view slide performance details.")
 
 with tab3:
     st.markdown("## 👥 Participant Dashboard")

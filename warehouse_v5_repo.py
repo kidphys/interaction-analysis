@@ -126,7 +126,8 @@ def get_all_answers_full(presentation_id):
     SELECT fa.id, fa.slide_id, fa.participant_id, fa.createdat, fa.correct, fa.answer_time_seconds, fa.submitted_answer_text,
     dp.title as presentation_title,
     dq.slide_title,
-    dq.slide_order
+    dq.slide_order,
+    fa.slide_type
     FROM aha_report_v5.fact_answers fa
     JOIN aha_report_v5.dim_presentations dp
         ON fa.master_presentation_id = dp.id
@@ -138,7 +139,7 @@ def get_all_answers_full(presentation_id):
     AND dda.id IS NULL
     """
     rows = execute(sql)
-    return pd.DataFrame(rows, columns=['Id', 'Slide Id', 'Participant Id', 'Created At', 'Correct', 'Answer Time Seconds', 'Answer Text', 'Presentation Title', 'Slide Title', 'Slide Order'])
+    return pd.DataFrame(rows, columns=['Id', 'Slide Id', 'Participant Id', 'Created At', 'Correct', 'Answer Time Seconds', 'Answer Text', 'Presentation Title', 'Slide Title', 'Slide Order', 'Slide Type'])
 
 class PresentationData:
 
@@ -157,7 +158,7 @@ class PresentationData:
         return self.get_total_participants_submitted() / self.total_participants * 100
 
     def get_slides_engagement_stats(self):
-        slide_df = self.df.groupby(['Slide Id', 'Slide Title', 'Slide Order']).agg({
+        slide_df = self.df.groupby(['Slide Id', 'Slide Title', 'Slide Order', 'Slide Type']).agg({
             'Participant Id': 'nunique',
             'Answer Time Seconds': 'mean'
         }).reset_index()
