@@ -158,11 +158,29 @@ class PresentationData:
         return self.get_total_participants_submitted() / self.total_participants * 100
 
     def get_slides_engagement_stats(self):
-        slide_df = self.df.groupby(['Slide Id', 'Slide Title', 'Slide Order', 'Slide Type']).agg({
+        df = self.df.copy()
+        df['CorrectCount'] = df['Correct'].apply(lambda r: 1 if r else 0)
+        slide_df = df.groupby(['Slide Id', 'Slide Title', 'Slide Order', 'Slide Type']).agg({
             'Participant Id': 'nunique',
-            'Answer Time Seconds': 'mean'
+            'Answer Time Seconds': 'mean',
+            'CorrectCount': 'sum',
+            'Id': 'count'  # Total submissions per slide
         }).reset_index()
         slide_df['Engagement Rate'] = slide_df['Participant Id'] / self.total_participants * 100
+        slide_df['Accuracy'] = slide_df['CorrectCount'] / slide_df['Id'] * 100  # Correct answers / total answers
+
+        def get_status(engagement_rate):
+            # Determine engagement status
+            if engagement_rate >= 90:
+                return "🟢 Excellent"
+            elif engagement_rate >= 80:
+                return "🟢 Good"
+            elif engagement_rate >= 60:
+                return "🟡 Attention"
+            else:
+                return "🔴 Needs Work"
+
+        slide_df['Status'] = slide_df['Engagement Rate'].apply(get_status)
         # Sort by slide order to maintain proper sequence
         slide_df = slide_df.sort_values('Slide Order').reset_index(drop=True)
         return slide_df
@@ -182,6 +200,39 @@ class PresentationData:
 
     def get_average_response_time(self):
         return self.df['Answer Time Seconds'].mean()
+
+    def get_slides_performance_table(self):
+        """
+        Return a formatted table ready for display with all calculated metrics
+        """
+        slide_stats_df = self.get_slides_engagement_stats()
+
+        table_data = []
+        for _, slide in slide_stats_df.iterrows():
+            slide_index = slide['Slide Order']
+            slide_title = slide['Slide Title']
+            slide_type = slide['Slide Type']
+            participants = int(slide['Participant Id'])
+            avg_time = slide['Answer Time Seconds']
+            engagement_rate = slide['Engagement Rate']
+            accuracy = slide['Accuracy']
+            status = slide['Status']
+
+            # Calculate participation percentage
+            participation_percentage = (participants / self.total_participants) * 100
+
+            table_data.append({
+                "Slide": f"Slide {int(slide_index)}: {slide_title}",
+                "Type": slide_type,
+                "Engagement Rate": f"{engagement_rate:.1f}%",
+                "Participation": f"{participation_percentage:.0f}% ({participants}/{self.total_participants})",
+                "Response Time": f"{avg_time:.1f}s",
+                "Submissions": f"{participants}",
+                "Accuracy": f"{accuracy:.1f}%",
+                "Status": status
+            })
+
+        return table_data
 
 
 # def get_presentations_stats(user_id: int):

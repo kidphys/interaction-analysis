@@ -180,10 +180,35 @@ with tab2:
         slide_stats_df_tab2 = prez_data_tab2.get_slides_engagement_stats()
         total_joined_tab2 = get_total_participants_joined(presentation_id)
 
-        # Header with back button (simulated)
+        # Header with back button
         col_back, col_title = st.columns([1, 4])
         with col_back:
-            st.markdown("← Back to Dashboard")
+            # Create a clickable back button using HTML/JavaScript
+            st.markdown("""
+                <script>
+                function goBackToDashboard() {
+                    // Find the Overview tab and click it
+                    const tabs = document.querySelectorAll('[data-testid="stTabs"] button');
+                    if (tabs.length > 0) {
+                        tabs[0].click(); // Click the first tab (Overview)
+                    }
+                }
+                </script>
+                <button onclick="goBackToDashboard()" style="
+                    background: none;
+                    border: none;
+                    color: #666;
+                    cursor: pointer;
+                    font-size: 14px;
+                    padding: 5px 0;
+                    text-decoration: none;
+                    display: flex;
+                    align-items: center;
+                    gap: 5px;
+                ">
+                    ← Back to Dashboard
+                </button>
+            """, unsafe_allow_html=True)
         with col_title:
             st.markdown("## Slides Performance")
             total_slides_tab2 = len(slide_stats_df_tab2)
@@ -238,46 +263,24 @@ with tab2:
         # Slide performance table
         st.markdown("### Slide Performance Details")
 
-        # Filter slides based on search term
-        filtered_slides = slide_stats_df_tab2.copy()
-        if search_term:
-            filtered_slides = filtered_slides[filtered_slides['Slide Title'].str.contains(search_term, case=False, na=False)]
+        # Get formatted table data from warehouse
+        all_table_data = prez_data_tab2.get_slides_performance_table()
 
-        # Prepare data for table display
+        # Filter table data based on search term
         table_data = []
-        for index, slide in filtered_slides.iterrows():
-            slide_index = slide['Slide Order']
-            slide_title = slide['Slide Title']
-            slide_type = slide['Slide Type']
-            participants = int(slide['Participant Id'])
-            avg_time = slide['Answer Time Seconds']
-            engagement_rate = slide['Engagement Rate']
-
-            # Determine engagement status
-            if engagement_rate >= 90:
-                status = "🟢 Excellent"
-            elif engagement_rate >= 80:
-                status = "🟢 Good"
-            elif engagement_rate >= 60:
-                status = "🟡 Attention"
-            else:
-                status = "🔴 Needs Work"
-
-            table_data.append({
-                "Slide": f"Slide {slide_index}: {slide_title}",
-                "Type": slide_type,
-                "Engagement Rate": f"{engagement_rate:.1f}%",
-                "Participation": f"{(participants/total_joined_tab2*100):.0f}% ({participants}/{total_joined_tab2})",
-                "Response Time": f"{avg_time:.1f}s",
-                "Submissions": f"{participants}",
-                "Status": status
-            })
+        if search_term:
+            for row in all_table_data.iterrows():
+                if search_term.lower() in row['Slide'].lower():
+                    table_data.append(row)
+        else:
+            table_data = all_table_data
 
         # Display table
         if table_data:
             import pandas as pd
-            df_display = pd.DataFrame(table_data)
-            st.dataframe(df_display, use_container_width=True, hide_index=True)
+            # df_display = pd.DataFrame(table_data)
+            # st.dataframe(df_display, use_container_width=True, hide_index=True)
+            st.dataframe(all_table_data)
         else:
             st.info("No slides found matching your search criteria.")
     else:
