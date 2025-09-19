@@ -1,3 +1,4 @@
+from functools import lru_cache
 from langgraph.graph.state import RunnableConfig
 from pydantic import BaseModel, Field
 from typing import Union, List, Dict, Any, Literal, Annotated
@@ -104,6 +105,74 @@ def run_query_tool(sql: str, config: RunnableConfig):
         traceback.print_exc()
         return f"Error executing query: {str(e)}"
 
+
+@lru_cache
+def get_all_answers(user_id: str):
+    sql = f"""
+    SELECT
+        fa.user_id,
+        fa.slide_id,
+        fa.question_id,
+        fa.participant_id,
+        fa.master_presentation_id as presentation_id,
+        fa.slide_type,
+        dq.slide_title,
+        dp.title as presentation_title,
+        fa.submitted_answer_text,
+        fa.correct,
+        fa.createdat
+    FROM aha_report_v5.fact_answers fa
+    JOIN aha_report_v5.dim_questions dq
+        ON fa.question_id = dq.id
+    JOIN aha_report_v5.dim_presentations dp
+        ON fa.master_presentation_id = dp.id
+    WHERE fa.user_id = '{user_id}' -- Replace with actual user ID or bind parameter
+    """
+    try:
+        rows, cols = execute_with_columns(sql)
+        return {
+            'rows': rows,
+            'cols': cols,
+        }
+    except Exception as e:
+        import traceback
+        print(f'Exception type: {type(e)}')
+        print(f'Args: {e.args}')
+        print('Full traceback:')
+        traceback.print_exc()
+        raise e
+
+
+
+import pandas as pd
+import duckdb
+
+
+@tool
+def fast_query(sql: str, config: RunnableConfig):
+    """
+    Run a query on the DuckDb inmem OLAP db given the following table:
+    `answers`
+        user_id (varchar)
+        slide_id (varchar)
+        question_id (varchar)
+        participant_id (varchar)
+        presentation_id (varchar)
+        presentation_title (varchar)
+        slide_type (varchar): can be 'Pick Answer', 'Poll', 'Open Ended'
+        slide_title (varchar): the title of the question asked in the slide
+        submitted_answer_text (varchar): the answer that this participant submitted
+        correct (boolean)
+        createdat (timestamp)
+    """
+    all_answers = get_all_answers(config['metadata']['user_id'])
+    df = pd.DataFrame(all_answers['rows'])
+    df.columns = all_answers['cols']
+    con = duckdb.connect(database=":memory:")
+    con.register("answers", df)
+    res = con.execute(sql).fetchdf()
+    return res.to_dict(orient='list')
+
 # System prompt
 system_prompt = """
 You are a helpful assistant that can give insights about the data.
@@ -141,7 +210,7 @@ class StructuredAgent:
         """Initialize the React agent with memory"""
         memory = MemorySaver()
         model = init_chat_model(self.model_name, max_tokens=8096)
-        tools = [run_query_tool]
+        tools = [fast_query]
         sys_message = SystemMessage(content=system_prompt)
 
         self.agent_executor = create_react_agent(
