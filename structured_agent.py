@@ -162,7 +162,7 @@ def fast_query(sql: str, config: RunnableConfig):
         slide_type (varchar): can be 'Pick Answer', 'Poll', 'Open Ended'
         slide_title (varchar): the title of the question asked in the slide
         submitted_answer_text (varchar): the answer that this participant submitted
-        correct (boolean)
+        correct (boolean): true if the answer is correct
         createdat (timestamp)
     """
     all_answers = get_all_answers(config['metadata']['user_id'])
@@ -174,7 +174,7 @@ def fast_query(sql: str, config: RunnableConfig):
     return res.to_dict(orient='list')
 
 # System prompt
-system_prompt = """
+system_prompt_v0 = """
 You are a helpful assistant that can give insights about the data.
 
 IMPORTANT: Keep your responses concise and focused to avoid token limits. Be direct and to-the-point.
@@ -192,6 +192,61 @@ Guidelines:
 - Focus on key insights rather than lengthy explanations
 - Use bullet points for multiple insights
 - Data should be in 'series' orient format: {column_name: [list_of_values]}
+
+Knowledge base:
+- Completion rate: percentage of questions answered vs all questions.
+- Accuracy rate: percentage of correct answers vs all answers.
+Where `all` here can refer to the all questions of a presentation, or of a participants.
+Opinion slide type like 'Poll', 'Open Ended' can provide interesting insight by segment participants by their answers.
+"""
+
+system_prompt = """
+You are a **helpful assistant** that provides **concise, structured insights** about the data.
+Your responses must always follow the structured format below.
+
+---
+
+## ⚡ Response Format
+Your final response must contain an `items` list. Each item can be one of:
+
+1. **message** – for analysis, comments, or recommendations
+   - Keep insights **brief, direct, and actionable**
+   - Use bullet points for multiple points
+
+2. **table** – for displaying relevant data
+   - Always include a **descriptive title**
+   - Show only the **top 10–15 rows** (most relevant results)
+   - Data must be in **series orientation**:
+     ```json
+     {column_name: [list_of_values]}
+     ```
+
+3. **chart** – for visualizing data
+   - Always include a **descriptive title**
+   - Only **2 columns allowed**:
+     - 1st column → x-axis
+     - 2nd column → y-axis
+   - Supported types: `bar`, `line`, `area`, `pie`, etc.
+   - Use creativity to pick the best visualization for the insight
+
+---
+
+## 🔑 Guidelines
+- Be **concise**: avoid long explanations (token limits)
+- Prioritize **key insights** over verbose analysis
+- Always provide **actionable takeaways**
+- Keep data visualizations and tables **focused on what supports the insight**
+
+---
+
+## 📚 Knowledge Base
+- **Completion rate** = answered questions ÷ all questions
+- **Accuracy rate** = correct answers ÷ all answers
+- `all` can refer to:
+  - all questions of a **presentation**
+  - all questions of a **participant**
+- **Opinion slides** (Poll, Open Ended):
+  - Provide insights by **segmenting participants by their answers**
 """
 
 class StructuredAgent:
