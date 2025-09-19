@@ -146,7 +146,23 @@ def get_all_answers(user_id: str):
 
 import pandas as pd
 import duckdb
+import pyarrow as pa
 
+
+@lru_cache
+def get_conn_for_user(user_id):
+    all_answers = get_all_answers(user_id)
+    df = pd.DataFrame(all_answers['rows'])
+    df.columns = all_answers['cols']
+    con = duckdb.connect(database=":memory:")
+    table = pa.Table.from_pandas(df)
+    con.register("answers", table)
+    return con
+
+def normalize_timestamps(df):
+    for col in df.select_dtypes(include=["datetime64[ns]"]):
+        df[col] = df[col].dt.strftime("%Y-%m-%d %H:%M:%S")
+    return df
 
 @tool
 def fast_query(sql: str, config: RunnableConfig):
@@ -165,12 +181,14 @@ def fast_query(sql: str, config: RunnableConfig):
         correct (boolean): true if the answer is correct
         createdat (timestamp)
     """
-    all_answers = get_all_answers(config['metadata']['user_id'])
-    df = pd.DataFrame(all_answers['rows'])
-    df.columns = all_answers['cols']
-    con = duckdb.connect(database=":memory:")
-    con.register("answers", df)
+    # all_answers = get_all_answers(config['metadata']['user_id'])
+    # df = pd.DataFrame(all_answers['rows'])
+    # df.columns = all_answers['cols']
+    # con = duckdb.connect(database=":memory:")
+    # con.register("answers", df)
+    con = get_conn_for_user(config['metadata']['user_id'])
     res = con.execute(sql).fetchdf()
+    res = normalize_timestamps(res)
     return res.to_dict(orient='list')
 
 # System prompt
@@ -236,6 +254,11 @@ Your final response must contain an `items` list. Each item can be one of:
 - Prioritize **key insights** over verbose analysis
 - Always provide **actionable takeaways**
 - Keep data visualizations and tables **focused on what supports the insight**
+
+It's critical to follow this guideline when generating SQL, people may die if you don't:
+- Prefer writing a single SQL query that returns all necessary fields, rather than multiple separate queries.
+- Use GROUP BY, CASE WHEN, UNION and window functions if needed to cover multiple views in one query.
+- Avoid calling the database multiple times for related data if one query can provide the result.
 
 ---
 
