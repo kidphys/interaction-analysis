@@ -6,6 +6,7 @@ from langchain.chat_models import init_chat_model
 from langchain_core.messages import SystemMessage
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.prebuilt import create_react_agent
+from langchain_core.messages.utils import trim_messages
 from langchain.tools import tool
 from redshift_api import execute_with_columns
 import traceback
@@ -181,11 +182,8 @@ def fast_query(sql: str, config: RunnableConfig):
         correct (boolean): true if the answer is correct
         createdat (timestamp)
     """
-    # all_answers = get_all_answers(config['metadata']['user_id'])
-    # df = pd.DataFrame(all_answers['rows'])
-    # df.columns = all_answers['cols']
-    # con = duckdb.connect(database=":memory:")
-    # con.register("answers", df)
+    print(f'\n')
+    print(f'FAST QUERY: {sql}\n')
     con = get_conn_for_user(config['metadata']['user_id'])
     res = con.execute(sql).fetchdf()
     res = normalize_timestamps(res)
@@ -255,10 +253,11 @@ Your final response must contain an `items` list. Each item can be one of:
 - Always provide **actionable takeaways**
 - Keep data visualizations and tables **focused on what supports the insight**
 
-It's critical to follow this guideline when generating SQL, people may die if you don't:
+It's CRITICAL to follow this guideline when generating SQL, people may die if you don't:
 - Prefer writing a single SQL query that returns all necessary fields, rather than multiple separate queries.
 - Use GROUP BY, CASE WHEN, UNION and window functions if needed to cover multiple views in one query.
 - Avoid calling the database multiple times for related data if one query can provide the result.
+- Always sort and limit your query to reduce the amount of data returned to analyze
 
 ---
 
@@ -271,6 +270,25 @@ It's critical to follow this guideline when generating SQL, people may die if yo
 - **Opinion slides** (Poll, Open Ended):
   - Provide insights by **segmenting participants by their answers**
 """
+
+def pre_model_hook(state):
+    trimmed_messages = trim_messages(
+        state["messages"],
+        strategy="last",
+        token_counter=len,
+        start_on=['human', 'ai'],
+        max_tokens=5,
+        include_system=True,
+        allow_partial=True
+    )
+    print("\nCONTEXT SENT TO LLM:")
+    print("="*50)
+    for i, msg in enumerate(trimmed_messages):
+        msg_type = msg.__class__.__name__
+        content = msg.content
+        print(f"{i+1}. [{msg_type}] {content}")
+    print("="*50 + "\n")
+    return {"llm_input_messages": trimmed_messages}
 
 class StructuredAgent:
     """
@@ -293,7 +311,8 @@ class StructuredAgent:
 
         self.agent_executor = create_react_agent(
             model, tools, checkpointer=memory,
-            prompt=sys_message, response_format=InsightResponse
+            prompt=sys_message, response_format=InsightResponse,
+            pre_model_hook=pre_model_hook
         )
 
     def _get_config(self):
