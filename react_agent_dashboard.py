@@ -146,7 +146,7 @@ def create_configuration():
         st.rerun()
 
 
-def st_process_user_prompt(prompt):
+def st_process_user_prompt(agent, prompt):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
@@ -154,7 +154,7 @@ def st_process_user_prompt(prompt):
     with st.chat_message("assistant"):
         with st.spinner("Thinking and analyzing data..."):
             try:
-                response = stream_agent_response_ui(st.session_state.agent, prompt)
+                response = stream_agent_response_ui(agent, prompt)
                 if response:
                     st.session_state.messages.append({"role": "assistant", "content": response})
                 else:
@@ -222,7 +222,7 @@ def create_agent_dashboard():
 
     # Chat input
     if prompt := st.chat_input("Ask me anything about your data..."):
-        st_process_user_prompt(prompt)
+        st_process_user_prompt(st.session_state.agent, prompt)
 
     # Example queries section
     with st.expander("💡 Example Queries"):
@@ -241,7 +241,7 @@ def create_agent_dashboard():
 
         for query in example_queries:
             if st.button(f"Try: {query}", key=f"example_{hash(query)}"):
-                st_process_user_prompt(query)
+                st_process_user_prompt(st.session_state.agent, query)
 
     # Footer
     st.markdown("---")

@@ -439,26 +439,15 @@ with tab4:
 with tab5:
     # Page configuration
     st.set_page_config(
-        page_title="AI Data Assistant",
-        page_icon="🤖",
         layout="wide"
     )
 
     # Initialize session state
     if 'messages' not in st.session_state:
         st.session_state.messages = []
-    if 'agent_executor' not in st.session_state:
-        st.session_state.agent_executor = None
-    if 'presentation_id' not in st.session_state:
-        st.session_state.presentation_id = presentation_id
 
-    if 'agent' not in st.session_state:
-        st.session_state.agent = PresentationAgent(presentation_id=st.session_state.presentation_id)
+    agent = PresentationAgent(presentation_id=presentation_id)
 
-
-    # Main UI
-    st.title("🤖 AI Data Assistant")
-    st.markdown("Ask questions about your data warehouse and get intelligent responses!")
 
     # Chat interface
     st.markdown("### Chat with your Data")
@@ -475,7 +464,7 @@ with tab5:
 
     # Chat input
     if prompt := st.chat_input("Ask me anything about your data..."):
-        st_process_user_prompt(prompt)
+        st_process_user_prompt(agent, prompt)
 
     # Example queries section
     with st.expander("💡 Example Queries"):
@@ -493,7 +482,7 @@ with tab5:
 
         for query in example_queries:
             if st.button(f"Try: {query}", key=f"example_{hash(query)}"):
-                st_process_user_prompt(query)
+                st_process_user_prompt(agent, query)
 
     # Footer
     st.markdown("---")

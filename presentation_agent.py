@@ -1,6 +1,7 @@
 """
 This module provides an agent that can query data from a single presentation and provide insights about it.
 """
+from langchain.tools import tool
 import pandas as pd
 import duckdb
 import pyarrow as pa
@@ -34,7 +35,9 @@ def get_all_answers(presentation_id: str):
         ON fa.question_id = dq.id
     JOIN aha_report_v5.dim_presentations dp
         ON fa.master_presentation_id = dp.id
-    WHERE fa.master_presentation_id = '{presentation_id}'
+    LEFT JOIN aha_report_v5.dim_deleted_answers dda
+        ON fa.id = dda.id
+    WHERE fa.master_presentation_id = {presentation_id} AND dda.id IS NULL
     """
     try:
         rows, cols = execute_with_columns(sql)
@@ -61,6 +64,7 @@ def get_conn_for_presentation(presentation_id):
     return con
 
 
+@tool
 def presentation_query(sql: str, config: RunnableConfig):
     """
     Run a query on the DuckDb inmem OLAP db given the following table:
@@ -89,6 +93,7 @@ class PresentationAgent(StructuredAgent):
 
     def __init__(self, presentation_id: str):
         super().__init__()
+        print(f'\nPresentationAgent initialized with presentation_id: {presentation_id}\n')
         self.presentation_id = presentation_id
 
     def _initialize_agent(self):
