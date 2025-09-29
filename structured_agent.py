@@ -12,12 +12,6 @@ from redshift_api import execute_with_columns
 import traceback
 from dotenv import load_dotenv
 import json
-from rich.console import Console
-from rich.panel import Panel
-from rich.table import Table
-from rich.text import Text
-from rich.tree import Tree
-from rich import print as rprint
 
 # Load environment variables
 load_dotenv('.env.local')
