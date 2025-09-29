@@ -1,4 +1,6 @@
 import streamlit as st
+from presentation_agent import PresentationAgent
+from react_agent_dashboard import display_structured_response, st_process_user_prompt
 from warehouse_v5_repo import PresentationData, get_all_answers_full, get_average_response_time, get_most_engaging_slides, get_recent_presentations, get_total_participants_joined, get_total_participants_submitted, get_total_submissions
 
 # Set page configuration
@@ -435,9 +437,71 @@ with tab4:
     st.markdown("- Seasonal trends")
 
 with tab5:
-    st.markdown("## 🤖 AI Insights Dashboard")
-    st.info("AI-powered insights and recommendations will be displayed here.")
-    st.markdown("### Coming Soon")
-    st.markdown("- Automated performance recommendations")
-    st.markdown("- Content optimization suggestions")
-    st.markdown("- Predictive engagement modeling")
+    # Page configuration
+    st.set_page_config(
+        page_title="AI Data Assistant",
+        page_icon="🤖",
+        layout="wide"
+    )
+
+    # Initialize session state
+    if 'messages' not in st.session_state:
+        st.session_state.messages = []
+    if 'agent_executor' not in st.session_state:
+        st.session_state.agent_executor = None
+    if 'presentation_id' not in st.session_state:
+        st.session_state.presentation_id = presentation_id
+
+    if 'agent' not in st.session_state:
+        st.session_state.agent = PresentationAgent(presentation_id=st.session_state.presentation_id)
+
+
+    # Main UI
+    st.title("🤖 AI Data Assistant")
+    st.markdown("Ask questions about your data warehouse and get intelligent responses!")
+
+    # Chat interface
+    st.markdown("### Chat with your Data")
+
+    # Display chat messages
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            if message["role"] == "assistant":
+                display_structured_response(message['content'])
+            else:
+                st.markdown(message['content'])
+
+
+
+    # Chat input
+    if prompt := st.chat_input("Ask me anything about your data..."):
+        st_process_user_prompt(prompt)
+
+    # Example queries section
+    with st.expander("💡 Example Queries"):
+        st.markdown("""
+        Try these example queries to get started:
+        """)
+
+        example_queries = [
+            "What are the most common slide types used?",
+            "Show me engagement patterns by slide type",
+            "Show me recent presentation activity",
+            "Which questions have the lowest accuracy rates?",
+            "What are the trending topics in open-ended responses?"
+        ]
+
+        for query in example_queries:
+            if st.button(f"Try: {query}", key=f"example_{hash(query)}"):
+                st_process_user_prompt(query)
+
+    # Footer
+    st.markdown("---")
+    st.markdown(
+        """
+        <div style='text-align: center; color: gray;'>
+            Powered by LangChain 🦜🔗 and Streamlit
+        </div>
+        """,
+        unsafe_allow_html=True
+    )

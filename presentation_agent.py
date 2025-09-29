@@ -34,7 +34,7 @@ def get_all_answers(presentation_id: str):
         ON fa.question_id = dq.id
     JOIN aha_report_v5.dim_presentations dp
         ON fa.master_presentation_id = dp.id
-    WHERE fa.presentation_id = '{presentation_id}'
+    WHERE fa.master_presentation_id = '{presentation_id}'
     """
     try:
         rows, cols = execute_with_columns(sql)

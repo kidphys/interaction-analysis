@@ -146,6 +146,38 @@ def create_configuration():
         st.rerun()
 
 
+def st_process_user_prompt(prompt):
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    with st.chat_message("user"):
+        st.markdown(prompt)
+
+    with st.chat_message("assistant"):
+        with st.spinner("Thinking and analyzing data..."):
+            try:
+                response = stream_agent_response_ui(st.session_state.agent, prompt)
+                if response:
+                    st.session_state.messages.append({"role": "assistant", "content": response})
+                else:
+                    error_msg = "Sorry, I encountered an error processing your request."
+                    st.error(error_msg)
+                    st.session_state.messages.append({"role": "assistant", "content": error_msg})
+            except Exception as e:
+                error_msg = str(e)
+                if "max_tokens" in error_msg.lower() or "truncated" in error_msg.lower():
+                    st.warning("⚠️ The response was truncated. Try asking a more specific question or break your request into smaller parts.")
+                    fallback_response = InsightResponse(items=[
+                        MessageItem(
+                            type="message",
+                            content="The response was truncated due to length limits. Please try asking a more specific question."
+                        )
+                    ])
+                    st.session_state.messages.append({"role": "assistant", "content": fallback_response})
+                else:
+                    st.error(f"Error: {error_msg}")
+                    st.session_state.messages.append({"role": "assistant", "content": f"Error: {error_msg}"})
+
+    st.rerun()
+
 
 def create_agent_dashboard():
     # Page configuration
@@ -186,38 +218,6 @@ def create_agent_dashboard():
             else:
                 st.markdown(message['content'])
 
-
-    def st_process_user_prompt(prompt):
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.markdown(prompt)
-
-        with st.chat_message("assistant"):
-            with st.spinner("Thinking and analyzing data..."):
-                try:
-                    response = stream_agent_response_ui(st.session_state.agent, prompt)
-                    if response:
-                        st.session_state.messages.append({"role": "assistant", "content": response})
-                    else:
-                        error_msg = "Sorry, I encountered an error processing your request."
-                        st.error(error_msg)
-                        st.session_state.messages.append({"role": "assistant", "content": error_msg})
-                except Exception as e:
-                    error_msg = str(e)
-                    if "max_tokens" in error_msg.lower() or "truncated" in error_msg.lower():
-                        st.warning("⚠️ The response was truncated. Try asking a more specific question or break your request into smaller parts.")
-                        fallback_response = InsightResponse(items=[
-                            MessageItem(
-                                type="message",
-                                content="The response was truncated due to length limits. Please try asking a more specific question."
-                            )
-                        ])
-                        st.session_state.messages.append({"role": "assistant", "content": fallback_response})
-                    else:
-                        st.error(f"Error: {error_msg}")
-                        st.session_state.messages.append({"role": "assistant", "content": f"Error: {error_msg}"})
-
-        st.rerun()
 
 
     # Chat input
