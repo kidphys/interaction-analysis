@@ -1,7 +1,7 @@
 import streamlit as st
 from presentation_agent import PresentationAgent
 from react_agent_dashboard import display_structured_response, st_process_user_prompt
-from warehouse_v5_repo import PresentationData, get_all_answers_full, get_average_response_time, get_most_engaging_slides, get_recent_presentations, get_total_participants_joined, get_total_participants_submitted, get_total_submissions
+from warehouse_v5_repo import PresentationData, get_recent_presentations
 
 # Set page configuration
 st.set_page_config(
@@ -61,7 +61,7 @@ with tab1:
         prez_data = PresentationData(presentation_id)
 
         # Get real data for the selected presentation
-        total_joined = get_total_participants_joined(presentation_id)
+        total_joined = prez_data.get_total_participants_joined()
         total_submitted = prez_data.get_total_participants_submitted()
 
         # Calculate engagement rate
@@ -96,13 +96,14 @@ with tab1:
             st_show_sub_header_grey_text(f'Title: {most_engaging_slide["Slide Title"]}')
 
 
-        total_submissions = get_total_submissions(presentation_id)
+        total_submissions = prez_data.get_total_submissions()
+        submission_ratio = prez_data.get_submission_ratio()
         with col4:
             st.metric(
                 label="Total Submissions",
-                value=f"{total_submissions.iloc[0]['Total Submissions']:.0f}"
+                value=f"{total_submissions:.0f}"
             )
-            st_show_sub_header_grey_text(f"{total_submissions.iloc[0]['Submission Ratio']:.1f} per participant")
+            st_show_sub_header_grey_text(f"{submission_ratio:.1f} per participant")
 
         low_engagement_threshold = 20 # in percent
         slides_need_attention_count = prez_data.get_slides_need_attention_count(low_engagement_threshold)
@@ -180,7 +181,7 @@ with tab2:
     if presentation_id:
         prez_data_tab2 = PresentationData(presentation_id)
         slide_stats_df_tab2 = prez_data_tab2.get_slides_engagement_stats()
-        total_joined_tab2 = get_total_participants_joined(presentation_id)
+        total_joined_tab2 = prez_data_tab2.get_total_participants_joined()
 
         # Header with back button
         col_back, col_title = st.columns([1, 4])
@@ -436,7 +437,7 @@ with tab4:
     st.markdown("- Comparative performance metrics")
     st.markdown("- Seasonal trends")
 
-with tab5:
+with st.sidebar:
     # Page configuration
     st.set_page_config(
         layout="wide"

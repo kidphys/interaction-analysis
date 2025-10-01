@@ -1,6 +1,6 @@
 from re import I
 from typing import List
-from redshift_api import execute
+from redshift_api import execute, pure_execute
 import pandas as pd
 import json
 import ast
@@ -145,15 +145,54 @@ def get_all_answers_full(presentation_id):
     rows = execute(sql)
     return pd.DataFrame(rows, columns=['Id', 'Slide Id', 'Participant Id', 'Created At', 'Correct', 'Answer Time Seconds', 'Answer Text', 'Presentation Title', 'Slide Title', 'Slide Order', 'Slide Type', 'Participant Name', 'Participant Email'])
 
+import arrow
+
+def create_temp_table(presentation_id: str):
+    sql = f"""
+        create temp table temp_data_{presentation_id} as
+        select
+            fa.id as answer_id,
+            fa.user_id,
+            fa.participant_id,
+            fa.slide_id,
+            fa.master_presentation_id,
+            fa.createdat,
+            fa.correct,
+            fa.slide_type,
+            fa.answer_time_seconds,
+            ds.slide_title,
+            dp.title as presentation_title,
+            case when dda.id is not null then true else false end as is_deleted
+        from aha_report_v5.fact_answers fa
+        join aha_report_v5.dim_questions ds
+            on fa.slide_id = ds.id
+        join aha_report_v5.dim_presentations dp
+            on fa.master_presentation_id = dp.id
+        left join aha_report_v5.dim_deleted_answers dda
+            on fa.id = dda.id
+        where fa.master_presentation_id = {presentation_id} AND dda.id is NULL
+        """
+
+    now = arrow.now()
+    pure_execute(sql)
+    print(f'Create temp table time: {arrow.now() - now}')
+
 class PresentationData:
 
     def __init__(self, presentation_id: str):
         self.presentation_id = presentation_id
+        create_temp_table(presentation_id)
         self.df = get_all_answers_full(presentation_id)
         self.total_participants = get_total_participants_joined(presentation_id)
 
+    def get_total_participants_joined(self):
+        return self.total_participants
+
     def get_total_submissions(self):
         return self.df['Id'].nunique()
+
+    def get_submission_ratio(self):
+        return self.get_total_submissions() / self.get_total_participants_submitted()
 
     def get_total_participants_submitted(self):
         return self.df['Participant Id'].nunique()

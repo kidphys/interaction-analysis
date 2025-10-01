@@ -39,18 +39,45 @@ def _create_engine():
         conn.execute(text(sql))
     return engine
 
+import arrow
 
 def _execute(sql, create_engine: Callable):
+    now = arrow.now()
     engine = create_engine()
+    print(f'\nEngine time: {arrow.now() - now}')
+    now = arrow.now()
     with engine.connect() as conn:
+        print(f'\nConnection time: {arrow.now() - now}')
+        now = arrow.now()
+        print(f'\nSQL: {text(sql)}')
         res = conn.execute(text(sql))
         rows = res.fetchall()
+        print(f'\nFetching time: {arrow.now() - now}')
     return rows
 
 
 @st.cache_resource(ttl='60m')
 def st_create_engine():
     return _create_engine()
+
+
+def _pure_execute(sql, create_engine: Callable):
+    now = arrow.now()
+    engine = create_engine()
+    print(f'\nEngine time: {arrow.now() - now}')
+    now = arrow.now()
+    with engine.connect() as conn:
+        print(f'\nConnection time: {arrow.now() - now}')
+        now = arrow.now()
+        print(f'\nSQL: {text(sql)}')
+        res = conn.execute(text(sql))
+        print(f'\nResult: {res}, Fetching time: {arrow.now() - now}')
+    return None
+
+
+@st.cache_data(ttl='60m')
+def pure_execute(sql):
+    return _pure_execute(sql, st_create_engine)
 
 
 @st.cache_data(ttl='60m')
