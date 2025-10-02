@@ -1,3 +1,4 @@
+from concurrent.futures import ThreadPoolExecutor
 from re import I
 from typing import List
 from redshift_api import execute, pure_execute
@@ -47,6 +48,17 @@ def get_total_participants_submitted(presentation_id: str):
     return rows[0][0]
 
 
+def get_participant_stats(presentation_id: str):
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        joined_future = executor.submit(get_total_participants_joined, presentation_id)
+        submitted_future = executor.submit(get_total_participants_submitted, presentation_id)
+
+        return {
+            'total_joined': joined_future.result(),
+            'total_submitted': submitted_future.result()
+        }
+
+
 def get_recent_presentations(user_id: int):
     """
     Return a list of presentation sorted by last answered createdat
@@ -79,6 +91,27 @@ def get_average_response_time(presentation_id: str):
     """
     rows = execute(sql)
     return rows[0][0]
+
+
+def get_answer_stats(presentation_id: str):
+    sql = f"""
+    SELECT
+        COUNT(fa.id) as total_submissions,
+        COUNT(DISTINCT fa.participant_id) as total_submitted,
+        AVG(fa.answer_time_seconds) as avg_response_time
+    FROM aha_report_v5.fact_answers fa
+    LEFT JOIN aha_report_v5.dim_deleted_answers dda
+        ON fa.id = dda.id
+    WHERE fa.master_presentation_id = {presentation_id}
+        AND dda.id IS NULL
+    """
+    rows = execute(sql)
+    return {
+        'total_submissions': rows[0][0],
+        'total_participants_submitted': rows[0][1],
+        'avg_response_time': rows[0][2],
+        'submission_ratio': rows[0][0] / rows[0][1]
+    }
 
 
 def get_most_engaging_slides(presentation_id: str):
@@ -117,6 +150,58 @@ def get_total_submissions(presentation_id: str):
     df['Submission Ratio'] = df['Total Submissions'] / df['Total Participants']
     return df
 
+
+def get_slides_engagement_stats(presentation_id: str):
+    """
+    Return engagement statistics per slide
+    """
+    sql = f"""
+    SELECT
+        ds.slide_id,
+        ds.slide_title,
+        ds.slide_order,
+        ds.slide_type,
+        COUNT(DISTINCT fa.participant_id) as unique_participants,
+        AVG(fa.answer_time_seconds) as avg_answer_time,
+        SUM(CASE WHEN fa.correct = TRUE THEN 1 ELSE 0 END) as correct_count,
+        COUNT(fa.id) as total_submissions
+    FROM aha_report_v5.fact_answers fa
+    JOIN aha_report_v5.dim_questions ds
+        ON fa.slide_id = ds.id
+    LEFT JOIN aha_report_v5.dim_deleted_answers dda
+        ON fa.id = dda.id
+    WHERE fa.master_presentation_id = {presentation_id}
+        AND dda.id IS NULL
+    GROUP BY ds.slide_id, ds.slide_title, ds.slide_order, ds.slide_type
+    ORDER BY ds.slide_order
+    """
+    rows = execute(sql)
+    df = pd.DataFrame(rows, columns=[
+        'Slide Id', 'Slide Title', 'Slide Order', 'Slide Type',
+        'Participant Id', 'Answer Time Seconds', 'CorrectCount', 'Id'
+    ])
+    return df
+
+
+def enhance_slides_engagement_stats(df, total_participants):
+    # Calculate metrics in Python
+    df['Engagement Rate'] = df['Participant Id'] / total_participants * 100
+    df['Accuracy'] = df['CorrectCount'] / df['Id'] * 100
+
+    # Determine status
+    def get_status(engagement_rate):
+        if engagement_rate >= 90:
+            return "🟢 Excellent"
+        elif engagement_rate >= 80:
+            return "🟢 Good"
+        elif engagement_rate >= 60:
+            return "🟡 Attention"
+        else:
+            return "🔴 Needs Work"
+
+    df['Status'] = df['Engagement Rate'].apply(get_status)
+
+    return df
 
 def get_all_answers_full(presentation_id):
     """
@@ -176,6 +261,58 @@ def create_temp_table(presentation_id: str):
     now = arrow.now()
     pure_execute(sql)
     print(f'Create temp table time: {arrow.now() - now}')
+
+class PresentationDataSQL:
+
+    def __init__(self, presentation_id: str):
+        self.presentation_id = presentation_id
+
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            total_joined_future = executor.submit(get_total_participants_joined, presentation_id)
+            answer_future = executor.submit(get_answer_stats, presentation_id)
+            slides_engagement_stats_future = executor.submit(get_slides_engagement_stats, presentation_id)
+            self.total_participant_joined = total_joined_future.result()
+            answer_stats = answer_future.result()
+            slides_engagement_stats_df = slides_engagement_stats_future.result()
+            self.total_participants_submitted = answer_stats['total_participants_submitted']
+            self.total_submissions = answer_stats['total_submissions']
+            self.avg_response_time = answer_stats['avg_response_time']
+            self.submission_ratio = answer_stats['submission_ratio']
+            self.slides_engagement_stats = enhance_slides_engagement_stats(slides_engagement_stats_df, self.total_participant_joined)
+
+    def get_total_participants_joined(self):
+        return self.total_participant_joined
+
+    def get_total_submissions(self):
+        return self.total_submissions
+
+    def get_total_participants_submitted(self):
+        return self.total_participants_submitted
+
+    def get_engagement_rate(self):
+        return self.get_total_participants_submitted() / self.get_total_participants_joined() * 100
+
+    def get_submission_ratio(self):
+        return self.submission_ratio
+
+    def get_average_response_time(self):
+        return self.avg_response_time
+
+    def get_slides_engagement_stats(self):
+        return self.slides_engagement_stats
+
+    def get_most_engaging_slide(self):
+        slide_df = self.get_slides_engagement_stats()
+        slide = slide_df[slide_df['Engagement Rate'] == slide_df['Engagement Rate'].max()]
+        return slide.iloc[0].to_dict()
+
+    def get_slides_need_attention_count(self, threshold=60):
+        slide_df = self.get_slides_engagement_stats()
+        return len(slide_df[slide_df['Engagement Rate'] < threshold])
+
+    def get_total_slides_count(self):
+        slide_df = self.get_slides_engagement_stats()
+        return len(slide_df)
 
 class PresentationData:
 

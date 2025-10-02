@@ -29,7 +29,11 @@ def _create_engine():
         username=REDSHIFT_USER, # Amazon Redshift username
         password=REDSHIFT_PASSWORD # Amazon Redshift password
     )
-    engine = sa.create_engine(url)
+    engine = sa.create_engine(url,
+        pool_pre_ping=True,      # ✅ Goes here
+        pool_recycle=3600,       # Recycle connections after 1 hour
+        pool_size=5,
+        max_overflow=10)
 
     sql = """
     SELECT id FROM aha_report_x.mart_presentation_interactions LIMIT 1;
