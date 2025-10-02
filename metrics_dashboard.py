@@ -53,7 +53,8 @@ def st_show_sub_header_grey_text(text: str):
     st.markdown(f'<p style="color: #666666; font-size: 14px; margin-top: -10px;">{text}</p>', unsafe_allow_html=True)
 
 # Tab navigation
-tab1, tab2, tab3, tab4, tab5 = st.tabs(["Overview", "Slides", "Participant", "Trends", "Show AI Insights"])
+# tab1, tab2, tab3, tab4, tab5 = st.tabs(["Overview", "Slides", "Participant", "Trends", "Show AI Insights"])
+tab1, tab2, tab3 = st.tabs(["Overview", "Slides", "Participant"])
 
 with tab1:
     if presentation_id:
@@ -430,13 +431,13 @@ with tab3:
     else:
         st.warning("Please select a presentation to view participant performance details.")
 
-with tab4:
-    st.markdown("## 📈 Trends Dashboard")
-    st.info("Historical trends and performance over time will be displayed here.")
-    st.markdown("### Coming Soon")
-    st.markdown("- Time-series engagement analysis")
-    st.markdown("- Comparative performance metrics")
-    st.markdown("- Seasonal trends")
+# with tab4:
+#     st.markdown("## 📈 Trends Dashboard")
+#     st.info("Historical trends and performance over time will be displayed here.")
+#     st.markdown("### Coming Soon")
+#     st.markdown("- Time-series engagement analysis")
+#     st.markdown("- Comparative performance metrics")
+#     st.markdown("- Seasonal trends")
 
 with st.sidebar:
     # Page configuration
