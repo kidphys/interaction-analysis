@@ -178,321 +178,321 @@ with tab1:
             with col4:
                 st.metric("📊 Engagement", f"{engagement_rate:.1f}%", delta=status, delta_color=status_color)
 
-# with tab2:
-#     if presentation_id:
-#         prez_data_tab2 = PresentationData(presentation_id)
-#         slide_stats_df_tab2 = prez_data_tab2.get_slides_engagement_stats()
-#         total_joined_tab2 = prez_data_tab2.get_total_participants_joined()
+with tab2:
+    if presentation_id:
+        prez_data_tab2 = PresentationData(presentation_id)
+        slide_stats_df_tab2 = prez_data_tab2.get_slides_engagement_stats()
+        total_joined_tab2 = prez_data_tab2.get_total_participants_joined()
 
-#         # Header with back button
-#         col_back, col_title = st.columns([1, 4])
-#         with col_back:
-#             # Create a clickable back button using HTML/JavaScript
-#             st.markdown("""
-#                 <script>
-#                 function goBackToDashboard() {
-#                     // Find the Overview tab and click it
-#                     const tabs = document.querySelectorAll('[data-testid="stTabs"] button');
-#                     if (tabs.length > 0) {
-#                         tabs[0].click(); // Click the first tab (Overview)
-#                     }
-#                 }
-#                 </script>
-#                 <button onclick="goBackToDashboard()" style="
-#                     background: none;
-#                     border: none;
-#                     color: #666;
-#                     cursor: pointer;
-#                     font-size: 14px;
-#                     padding: 5px 0;
-#                     text-decoration: none;
-#                     display: flex;
-#                     align-items: center;
-#                     gap: 5px;
-#                 ">
-#                     ← Back to Dashboard
-#                 </button>
-#             """, unsafe_allow_html=True)
-#         with col_title:
-#             st.markdown("## Slides Performance")
-#             total_slides_tab2 = len(slide_stats_df_tab2)
-#             st.markdown(f"*Performance metrics for all {total_slides_tab2} slides in this session*")
+        # Header with back button
+        col_back, col_title = st.columns([1, 4])
+        with col_back:
+            # Create a clickable back button using HTML/JavaScript
+            st.markdown("""
+                <script>
+                function goBackToDashboard() {
+                    // Find the Overview tab and click it
+                    const tabs = document.querySelectorAll('[data-testid="stTabs"] button');
+                    if (tabs.length > 0) {
+                        tabs[0].click(); // Click the first tab (Overview)
+                    }
+                }
+                </script>
+                <button onclick="goBackToDashboard()" style="
+                    background: none;
+                    border: none;
+                    color: #666;
+                    cursor: pointer;
+                    font-size: 14px;
+                    padding: 5px 0;
+                    text-decoration: none;
+                    display: flex;
+                    align-items: center;
+                    gap: 5px;
+                ">
+                    ← Back to Dashboard
+                </button>
+            """, unsafe_allow_html=True)
+        with col_title:
+            st.markdown("## Slides Performance")
+            total_slides_tab2 = len(slide_stats_df_tab2)
+            st.markdown(f"*Performance metrics for all {total_slides_tab2} slides in this session*")
 
-#         st.markdown("---")
+        st.markdown("---")
 
-#         # Calculate aggregated metrics
-#         avg_engagement = slide_stats_df_tab2['Engagement Rate'].mean()
-#         avg_participation = (slide_stats_df_tab2['Participant Id'].sum() / total_joined_tab2) / len(slide_stats_df_tab2) * 100
-#         avg_response_time = slide_stats_df_tab2['Answer Time Seconds'].mean()
-#         slides_need_attention = len(slide_stats_df_tab2[slide_stats_df_tab2['Engagement Rate'] < 60])
+        # Calculate aggregated metrics
+        avg_engagement = slide_stats_df_tab2['Engagement Rate'].mean()
+        avg_participation = (slide_stats_df_tab2['Participant Id'].sum() / total_joined_tab2) / len(slide_stats_df_tab2) * 100
+        avg_response_time = slide_stats_df_tab2['Answer Time Seconds'].mean()
+        slides_need_attention = len(slide_stats_df_tab2[slide_stats_df_tab2['Engagement Rate'] < 60])
 
-#         # Top 4 metric cards with real data
-#         col1, col2, col3, col4 = st.columns(4)
+        # Top 4 metric cards with real data
+        col1, col2, col3, col4 = st.columns(4)
 
-#         with col1:
-#             st.metric(
-#                 label="📊 Avg Engagement",
-#                 value=f"{avg_engagement:.0f}%"
-#             )
-#             st_show_sub_header_grey_text("Across all slides")
+        with col1:
+            st.metric(
+                label="📊 Avg Engagement",
+                value=f"{avg_engagement:.0f}%"
+            )
+            st_show_sub_header_grey_text("Across all slides")
 
-#         with col2:
-#             st.metric(
-#                 label="👥 Avg Participation",
-#                 value=f"{avg_participation:.0f}%"
-#             )
-#             st_show_sub_header_grey_text("Average per slide")
+        with col2:
+            st.metric(
+                label="👥 Avg Participation",
+                value=f"{avg_participation:.0f}%"
+            )
+            st_show_sub_header_grey_text("Average per slide")
 
-#         with col3:
-#             st.metric(
-#                 label="⏱️ Avg Response Time",
-#                 value=f"{avg_response_time:.1f}s"
-#             )
-#             st_show_sub_header_grey_text("Across all answers")
+        with col3:
+            st.metric(
+                label="⏱️ Avg Response Time",
+                value=f"{avg_response_time:.1f}s"
+            )
+            st_show_sub_header_grey_text("Across all answers")
 
-#         with col4:
-#             st.metric(
-#                 label="⚠️ Need Attention",
-#                 value=f"{slides_need_attention}"
-#             )
-#             st_show_sub_header_grey_text("<60% engagement")
+        with col4:
+            st.metric(
+                label="⚠️ Need Attention",
+                value=f"{slides_need_attention}"
+            )
+            st_show_sub_header_grey_text("<60% engagement")
 
-#         st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown("<br>", unsafe_allow_html=True)
 
-#         # Search control
-#         search_term = st.text_input("🔍", placeholder="Search slides...", label_visibility="collapsed", key="slides_search")
+        # Search control
+        search_term = st.text_input("🔍", placeholder="Search slides...", label_visibility="collapsed", key="slides_search")
 
-#         st.markdown("---")
+        st.markdown("---")
 
-#         # Slide performance table
-#         st.markdown("### Slide Performance Details")
+        # Slide performance table
+        st.markdown("### Slide Performance Details")
 
-#         # Get formatted table data from warehouse
-#         all_table_data = prez_data_tab2.get_slides_performance_table()
+        # Get formatted table data from warehouse
+        all_table_data = prez_data_tab2.get_slides_performance_table()
 
-#         # Filter table data based on search term
-#         table_data = []
-#         if search_term:
-#             for row in all_table_data.iterrows():
-#                 if search_term.lower() in row['Slide'].lower():
-#                     table_data.append(row)
-#         else:
-#             table_data = all_table_data
+        # Filter table data based on search term
+        table_data = []
+        if search_term:
+            for row in all_table_data.iterrows():
+                if search_term.lower() in row['Slide'].lower():
+                    table_data.append(row)
+        else:
+            table_data = all_table_data
 
-#         # Display table
-#         if table_data:
-#             import pandas as pd
-#             # df_display = pd.DataFrame(table_data)
-#             # st.dataframe(df_display, use_container_width=True, hide_index=True)
-#             st.dataframe(all_table_data)
-#         else:
-#             st.info("No slides found matching your search criteria.")
-#     else:
-#         st.warning("Please select a presentation to view slide performance details.")
+        # Display table
+        if table_data:
+            import pandas as pd
+            # df_display = pd.DataFrame(table_data)
+            # st.dataframe(df_display, use_container_width=True, hide_index=True)
+            st.dataframe(all_table_data)
+        else:
+            st.info("No slides found matching your search criteria.")
+    else:
+        st.warning("Please select a presentation to view slide performance details.")
 
-# with tab3:
-#     if presentation_id:
-#         prez_data_tab3 = PresentationData(presentation_id)
+with tab3:
+    if presentation_id:
+        prez_data_tab3 = PresentationData(presentation_id)
 
-#         # Header with back button
-#         col_back, col_title = st.columns([1, 4])
-#         with col_back:
-#             # Create a clickable back button using HTML/JavaScript
-#             st.markdown("""
-#                 <script>
-#                 function goBackToDashboard() {
-#                     // Find the Overview tab and click it
-#                     const tabs = document.querySelectorAll('[data-testid="stTabs"] button');
-#                     if (tabs.length > 0) {
-#                         tabs[0].click(); // Click the first tab (Overview)
-#                     }
-#                 }
-#                 </script>
-#                 <button onclick="goBackToDashboard()" style="
-#                     background: none;
-#                     border: none;
-#                     color: #666;
-#                     cursor: pointer;
-#                     font-size: 14px;
-#                     padding: 5px 0;
-#                     text-decoration: none;
-#                     display: flex;
-#                     align-items: center;
-#                     gap: 5px;
-#                 ">
-#                     ← Back to Dashboard
-#                 </button>
-#             """, unsafe_allow_html=True)
-#         with col_title:
-#             st.markdown("## Participant Performance")
-#             total_participants = prez_data_tab3.total_participants
-#             st.markdown(f"*Individual performance metrics for all {total_participants} participants*")
+        # Header with back button
+        col_back, col_title = st.columns([1, 4])
+        with col_back:
+            # Create a clickable back button using HTML/JavaScript
+            st.markdown("""
+                <script>
+                function goBackToDashboard() {
+                    // Find the Overview tab and click it
+                    const tabs = document.querySelectorAll('[data-testid="stTabs"] button');
+                    if (tabs.length > 0) {
+                        tabs[0].click(); // Click the first tab (Overview)
+                    }
+                }
+                </script>
+                <button onclick="goBackToDashboard()" style="
+                    background: none;
+                    border: none;
+                    color: #666;
+                    cursor: pointer;
+                    font-size: 14px;
+                    padding: 5px 0;
+                    text-decoration: none;
+                    display: flex;
+                    align-items: center;
+                    gap: 5px;
+                ">
+                    ← Back to Dashboard
+                </button>
+            """, unsafe_allow_html=True)
+        with col_title:
+            st.markdown("## Participant Performance")
+            total_participants = prez_data_tab3.total_participants
+            st.markdown(f"*Individual performance metrics for all {total_participants} participants*")
 
-#         st.markdown("---")
+        st.markdown("---")
 
-#         # Get summary metrics
-#         summary_metrics = prez_data_tab3.get_participant_engagement_summary()
+        # Get summary metrics
+        summary_metrics = prez_data_tab3.get_participant_engagement_summary()
 
-#         # Top 4 metric cards
-#         col1, col2, col3, col4 = st.columns(4)
+        # Top 4 metric cards
+        col1, col2, col3, col4 = st.columns(4)
 
-#         with col1:
-#             st.metric(
-#                 label="👥 Active Participants",
-#                 value=f"{summary_metrics['active_participants']}"
-#             )
-#             st_show_sub_header_grey_text("≥90% response rate")
+        with col1:
+            st.metric(
+                label="👥 Active Participants",
+                value=f"{summary_metrics['active_participants']}"
+            )
+            st_show_sub_header_grey_text("≥90% response rate")
 
-#         with col2:
-#             st.metric(
-#                 label="🎯 Avg Response Rate",
-#                 value=f"{summary_metrics['avg_response_rate']:.0f}%"
-#             )
-#             st_show_sub_header_grey_text("Average across all participants")
+        with col2:
+            st.metric(
+                label="🎯 Avg Response Rate",
+                value=f"{summary_metrics['avg_response_rate']:.0f}%"
+            )
+            st_show_sub_header_grey_text("Average across all participants")
 
-#         with col3:
-#             st.metric(
-#                 label="⏱️ Avg Response Time",
-#                 value=f"{summary_metrics['avg_response_time']:.1f}s"
-#             )
-#             st_show_sub_header_grey_text("Average across all answers")
+        with col3:
+            st.metric(
+                label="⏱️ Avg Response Time",
+                value=f"{summary_metrics['avg_response_time']:.1f}s"
+            )
+            st_show_sub_header_grey_text("Average across all answers")
 
-#         with col4:
-#             st.metric(
-#                 label="💬 Total Q&A Questions",
-#                 value=f"{summary_metrics['total_qa_questions']}"
-#             )
-#             st_show_sub_header_grey_text("Interactive slides")
+        with col4:
+            st.metric(
+                label="💬 Total Q&A Questions",
+                value=f"{summary_metrics['total_qa_questions']}"
+            )
+            st_show_sub_header_grey_text("Interactive slides")
 
-#         st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown("<br>", unsafe_allow_html=True)
 
-#         # Search and sort controls
-#         col_search, col_sort = st.columns([2, 1])
+        # Search and sort controls
+        col_search, col_sort = st.columns([2, 1])
 
-#         with col_search:
-#             search_term = st.text_input("🔍", placeholder="Search participants...", label_visibility="collapsed", key="participants_search")
+        with col_search:
+            search_term = st.text_input("🔍", placeholder="Search participants...", label_visibility="collapsed", key="participants_search")
 
-#         with col_sort:
-#             sort_options = ["Response Rate", "Accuracy", "Response Time"]
-#             sort_by = st.selectbox("Sort by:", options=sort_options, key="participants_sort")
+        with col_sort:
+            sort_options = ["Response Rate", "Accuracy", "Response Time"]
+            sort_by = st.selectbox("Sort by:", options=sort_options, key="participants_sort")
 
-#         st.markdown("---")
+        st.markdown("---")
 
-#         # Participant performance table
-#         st.markdown("### Participant Performance Details")
+        # Participant performance table
+        st.markdown("### Participant Performance Details")
 
-#         # Get formatted table data from warehouse
-#         all_table_data = prez_data_tab3.get_participant_performance_table()
+        # Get formatted table data from warehouse
+        all_table_data = prez_data_tab3.get_participant_performance_table()
 
-#         # Filter table data based on search term
-#         table_data = []
-#         if search_term:
-#             for row in all_table_data:
-#                 if (search_term.lower() in row['Participant'].lower() or
-#                     search_term.lower() in row['Email'].lower()):
-#                     table_data.append(row)
-#         else:
-#             table_data = all_table_data
+        # Filter table data based on search term
+        table_data = []
+        if search_term:
+            for row in all_table_data:
+                if (search_term.lower() in row['Participant'].lower() or
+                    search_term.lower() in row['Email'].lower()):
+                    table_data.append(row)
+        else:
+            table_data = all_table_data
 
-#         # Sort the data based on selected sort option
-#         if table_data:
-#             if sort_by == "Response Rate":
-#                 table_data.sort(key=lambda x: float(x['Response Rate'].split('%')[0]), reverse=True)
-#             elif sort_by == "Accuracy":
-#                 table_data.sort(key=lambda x: float(x['Accuracy'].split('%')[0]) if x['Accuracy'] != "N/A" else 0, reverse=True)
-#             elif sort_by == "Response Time":
-#                 table_data.sort(key=lambda x: float(x['Avg Response Time'].split('s')[0]))
+        # Sort the data based on selected sort option
+        if table_data:
+            if sort_by == "Response Rate":
+                table_data.sort(key=lambda x: float(x['Response Rate'].split('%')[0]), reverse=True)
+            elif sort_by == "Accuracy":
+                table_data.sort(key=lambda x: float(x['Accuracy'].split('%')[0]) if x['Accuracy'] != "N/A" else 0, reverse=True)
+            elif sort_by == "Response Time":
+                table_data.sort(key=lambda x: float(x['Avg Response Time'].split('s')[0]))
 
-#         # Display table
-#         if table_data:
-#             import pandas as pd
-#             df_display = pd.DataFrame(table_data)
+        # Display table
+        if table_data:
+            import pandas as pd
+            df_display = pd.DataFrame(table_data)
 
-#             # Style the dataframe for better display
-#             st.dataframe(
-#                 df_display,
-#                 use_container_width=True,
-#                 hide_index=True,
-#                 column_config={
-#                     "Participant": st.column_config.TextColumn("Participant", width="medium"),
-#                     "Email": st.column_config.TextColumn("Email", width="medium"),
-#                     "Status": st.column_config.TextColumn("Status", width="small"),
-#                     "Response Rate": st.column_config.TextColumn("Response Rate", width="medium"),
-#                     "Accuracy": st.column_config.TextColumn("Accuracy", width="small"),
-#                     "Avg Response Time": st.column_config.TextColumn("Avg Response Time", width="medium"),
-#                     "Q&A Questions": st.column_config.NumberColumn("Q&A Questions", width="small"),
-#                     "Most/Least Engaged": st.column_config.TextColumn("Most/Least Engaged", width="medium"),
-#                     "Session Time": st.column_config.TextColumn("Session Time", width="medium")
-#                 }
-#             )
-#         else:
-#             st.info("No participants found matching your search criteria.")
-#     else:
-#         st.warning("Please select a presentation to view participant performance details.")
+            # Style the dataframe for better display
+            st.dataframe(
+                df_display,
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "Participant": st.column_config.TextColumn("Participant", width="medium"),
+                    "Email": st.column_config.TextColumn("Email", width="medium"),
+                    "Status": st.column_config.TextColumn("Status", width="small"),
+                    "Response Rate": st.column_config.TextColumn("Response Rate", width="medium"),
+                    "Accuracy": st.column_config.TextColumn("Accuracy", width="small"),
+                    "Avg Response Time": st.column_config.TextColumn("Avg Response Time", width="medium"),
+                    "Q&A Questions": st.column_config.NumberColumn("Q&A Questions", width="small"),
+                    "Most/Least Engaged": st.column_config.TextColumn("Most/Least Engaged", width="medium"),
+                    "Session Time": st.column_config.TextColumn("Session Time", width="medium")
+                }
+            )
+        else:
+            st.info("No participants found matching your search criteria.")
+    else:
+        st.warning("Please select a presentation to view participant performance details.")
 
-# with tab4:
-#     st.markdown("## 📈 Trends Dashboard")
-#     st.info("Historical trends and performance over time will be displayed here.")
-#     st.markdown("### Coming Soon")
-#     st.markdown("- Time-series engagement analysis")
-#     st.markdown("- Comparative performance metrics")
-#     st.markdown("- Seasonal trends")
+with tab4:
+    st.markdown("## 📈 Trends Dashboard")
+    st.info("Historical trends and performance over time will be displayed here.")
+    st.markdown("### Coming Soon")
+    st.markdown("- Time-series engagement analysis")
+    st.markdown("- Comparative performance metrics")
+    st.markdown("- Seasonal trends")
 
-# with st.sidebar:
-#     # Page configuration
-#     st.set_page_config(
-#         layout="wide"
-#     )
+with st.sidebar:
+    # Page configuration
+    st.set_page_config(
+        layout="wide"
+    )
 
-#     # Initialize session state
-#     if 'messages' not in st.session_state:
-#         st.session_state.messages = []
+    # Initialize session state
+    if 'messages' not in st.session_state:
+        st.session_state.messages = []
 
-#     agent = PresentationAgent(presentation_id=presentation_id)
-
-
-#     # Chat interface
-#     st.markdown("### Chat with your Data")
-
-#     # Display chat messages
-#     for message in st.session_state.messages:
-#         with st.chat_message(message["role"]):
-#             if message["role"] == "assistant":
-#                 display_structured_response(message['content'])
-#             else:
-#                 st.markdown(message['content'])
+    agent = PresentationAgent(presentation_id=presentation_id)
 
 
+    # Chat interface
+    st.markdown("### Chat with your Data")
 
-#     # Chat input
-#     if prompt := st.chat_input("Ask me anything about your data..."):
-#         st_process_user_prompt(agent, prompt)
+    # Display chat messages
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            if message["role"] == "assistant":
+                display_structured_response(message['content'])
+            else:
+                st.markdown(message['content'])
 
-#     # Example queries section
-#     with st.expander("💡 Example Queries"):
-#         st.markdown("""
-#         Try these example queries to get started:
-#         """)
 
-#         example_queries = [
-#             "What are the most common slide types used?",
-#             "Show me engagement patterns by slide type",
-#             "Show me recent presentation activity",
-#             "Which questions have the lowest accuracy rates?",
-#             "What are the trending topics in open-ended responses?"
-#         ]
 
-#         for query in example_queries:
-#             if st.button(f"Try: {query}", key=f"example_{hash(query)}"):
-#                 st_process_user_prompt(agent, query)
+    # Chat input
+    if prompt := st.chat_input("Ask me anything about your data..."):
+        st_process_user_prompt(agent, prompt)
 
-#     # Footer
-#     st.markdown("---")
-#     st.markdown(
-#         """
-#         <div style='text-align: center; color: gray;'>
-#             Powered by LangChain 🦜🔗 and Streamlit
-#         </div>
-#         """,
-#         unsafe_allow_html=True
-#     )
+    # Example queries section
+    with st.expander("💡 Example Queries"):
+        st.markdown("""
+        Try these example queries to get started:
+        """)
+
+        example_queries = [
+            "What are the most common slide types used?",
+            "Show me engagement patterns by slide type",
+            "Show me recent presentation activity",
+            "Which questions have the lowest accuracy rates?",
+            "What are the trending topics in open-ended responses?"
+        ]
+
+        for query in example_queries:
+            if st.button(f"Try: {query}", key=f"example_{hash(query)}"):
+                st_process_user_prompt(agent, query)
+
+    # Footer
+    st.markdown("---")
+    st.markdown(
+        """
+        <div style='text-align: center; color: gray;'>
+            Powered by LangChain 🦜🔗 and Streamlit
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
