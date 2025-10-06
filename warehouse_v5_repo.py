@@ -534,16 +534,74 @@ class PresentationData:
         return table_data
 
 
-# def get_presentations_stats(user_id: int):
-#     sql = f"""
-#     SELECT
-#     dp.title AS presentation_title,
-#     COUNT(DISTINCT fa.slide_id) AS total_slides,
-#     COUNT(DISTINCT fa.user_id) AS total_participants,
-#     COUNT(DISTINCT fa.id) AS total_answers
-#     FROM aha_report_v5.fact_answers fa
-#     JOIN aha_report_v5.dim_presentations dp
-#         ON fa.master_presentation_id = dp.id
-#     WHERE fa.user_id = {user_id}
-#     GROUP BY dp.title;
-#     """
+def get_recurring_questions(user_id: int):
+    sql = f"""
+    SELECT
+        ds.slide_title,
+        COUNT(DISTINCT ds.master_presentation_id) as presentation_count,
+        COUNT(DISTINCT fa.participant_id) as unique_participants,
+        AVG(fa.answer_time_seconds) as avg_answer_time,
+        SUM(CASE WHEN fa.correct = TRUE THEN 1 ELSE 0 END) as correct_count,
+        COUNT(fa.id) as total_submissions
+    FROM aha_report_v5.fact_answers fa
+    JOIN aha_report_v5.dim_questions ds
+        ON fa.slide_id = ds.id
+    LEFT JOIN aha_report_v5.dim_deleted_answers dda
+        ON fa.id = dda.id
+    WHERE fa.user_id = {user_id}
+        AND dda.id IS NULL
+    GROUP BY ds.slide_title
+    ORDER BY presentation_count DESC
+    """
+    rows = execute(sql)
+    return pd.DataFrame(rows, columns=['SlideTitle', 'PresentationCount', 'ParticipantCount', 'AverageTime', 'CorrectCount', 'TotalSubmissions'])
+
+
+def escape_str_for_sql(str_value):
+    """
+    Escape character such as `'` in the str value
+    """
+    if str_value is None:
+        return None
+
+    # Replace single quotes with two single quotes (SQL standard escaping)
+    return str_value.replace("'", "''")
+
+
+def query_question_engagement_data(slide_title: str):
+    """
+    Return engagement for a `question`: = slide_title
+    """
+    sql = f"""
+    SELECT
+        ds.slide_title,
+        dp.title,
+        COUNT(DISTINCT fa.participant_id) as unique_participants,
+        AVG(fa.answer_time_seconds) as avg_answer_time,
+        SUM(CASE WHEN fa.correct = TRUE THEN 1 ELSE 0 END) as correct_count,
+        COUNT(fa.id) as total_submissions,
+        MAX(fa.createdat) as last_answered_at
+    FROM aha_report_v5.fact_answers fa
+    JOIN aha_report_v5.dim_questions ds
+        ON fa.slide_id = ds.id
+    JOIN aha_report_v5.dim_presentations dp
+        ON fa.master_presentation_id = dp.id
+    LEFT JOIN aha_report_v5.dim_deleted_answers dda
+        ON fa.id = dda.id
+    WHERE ds.slide_title = '{escape_str_for_sql(slide_title)}'
+        AND dda.id IS NULL
+    GROUP BY ds.slide_title, dp.title
+    ORDER BY last_answered_at ASC
+    """
+    rows = execute(sql)
+    df = pd.DataFrame(rows, columns=[
+        'Slide Title', 'Presentation',
+        'Participant Count', 'Answer Time Seconds', 'Correct Count', 'Total Submission Count', 'Last Answered At'
+    ])
+    return df
+
+
+def get_question_engagement_stats(slide_title):
+    df = query_question_engagement_data(slide_title)
+    df['Accuracy'] = df['Correct Count'] / df['Total Submission Count']
+    return df
