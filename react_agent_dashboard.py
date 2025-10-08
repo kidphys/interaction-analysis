@@ -7,6 +7,7 @@ from structured_agent import (
     MessageItem,
     TableItem,
     ChartItem,
+    get_all_answers,
     initialize_agent,
     stream_agent_response
 )
@@ -145,6 +146,12 @@ def create_configuration():
         st.session_state.messages = []
         st.rerun()
 
+    with st.spinner("Speed up query..."):
+        print(f'Preload data for {st.session_state.current_user_id}')
+        get_all_answers(st.session_state.current_user_id)
+        print(f'DONE Preload data for {st.session_state.current_user_id}')
+
+
 
 def st_process_user_prompt(agent, prompt):
     st.session_state.messages.append({"role": "user", "content": prompt})
@@ -203,10 +210,6 @@ def create_agent_dashboard():
     st.title("🤖 AI Data Assistant")
     st.markdown("Ask questions about your data warehouse and get intelligent responses!")
 
-    # Sidebar for configuration
-    with st.sidebar:
-        create_configuration()
-
     # Chat interface
     st.markdown("### Chat with your Data")
 
@@ -253,6 +256,10 @@ def create_agent_dashboard():
         """,
         unsafe_allow_html=True
     )
+
+    # Sidebar for configuration
+    with st.sidebar:
+        create_configuration()
 
 
 if __name__ == "__main__":

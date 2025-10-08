@@ -299,8 +299,6 @@ class StructuredAgent:
         self.model_name = model_name
         self.agent_executor = None
         self._initialize_agent()
-        # pre-cache the data on startup
-        get_all_answers(user_id)
 
     def _initialize_agent(self):
         """Initialize the React agent with memory"""
