@@ -8,6 +8,9 @@ from structured_agent import (
     TableItem,
     ChartItem,
     get_all_answers,
+    get_presentation_count,
+    get_response_count,
+    get_slide_count,
     initialize_agent,
     stream_agent_response
 )
@@ -185,6 +188,19 @@ def st_process_user_prompt(agent, prompt):
 
     st.rerun()
 
+def styled_metric(label, value, delta=None):
+    st.markdown(f"""
+    <div style="
+        background-color: #f0f2f6;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    ">
+        <h4 style="color: #666; margin: 0;">{label}</h4>
+        <h2 style="color: #111; margin: 10px 0;">{value}</h2>
+        <p style="color: #28a745; margin: 0;">{delta if delta else ''}</p>
+    </div>
+    """, unsafe_allow_html=True)
 
 def create_agent_dashboard():
     # Page configuration
@@ -207,11 +223,20 @@ def create_agent_dashboard():
 
 
     # Main UI
-    st.title("🤖 AI Data Assistant")
-    st.markdown("Ask questions about your data warehouse and get intelligent responses!")
+    st.title("Hi Duke")
+    st.markdown("Welcome to Data Chat - your assistant for session analyatics.")
 
-    # Chat interface
-    st.markdown("### Chat with your Data")
+    st.markdown("Here are some quick insights from all your sessions:")
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        presentation_count = get_presentation_count(st.session_state.current_user_id)
+        st.metric('Total sessions', presentation_count)
+    with col2:
+        response_count = get_response_count(st.session_state.current_user_id)
+        st.metric('Responses Collected', 324)
+    with col3:
+        slide_count = get_slide_count(st.session_state.current_user_id)
+        st.metric('Slides Created', slide_count)
 
     # Display chat messages
     for message in st.session_state.messages:
@@ -230,7 +255,7 @@ def create_agent_dashboard():
     # Example queries section
     # with st.expander("💡 Example Queries"):
     st.markdown("""
-    Try these example queries to get started:
+    Want deeper insight? ask me anything about your presentations, or click a suggestion
     """)
 
     example_queries = [

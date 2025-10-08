@@ -138,14 +138,43 @@ def get_all_answers(user_id: str):
         raise e
 
 
+def get_presentation_count(user_id):
+    sql = """
+    SELECT COUNT(DISTINCT presentation_id) FROM answers
+    """
+    df = execute_query_for_user(sql, user_id)
+    return df.iloc[0][0]
+
+
+
+def get_slide_count(user_id):
+    sql = """
+    SELECT COUNT(DISTINCT slide_id) FROM answers
+    """
+    df = execute_query_for_user(sql, user_id)
+    return df.iloc[0][0]
+
+
+def get_response_count(user_id):
+    sql = """
+    SELECT COUNT(*) FROM answers
+    """
+    df = execute_query_for_user(sql, user_id)
+    return df.iloc[0][0]
+
+
+def get_(user_id):
+    sql = """
+    SELECT COUNT(*) FROM answers
+    """
+    df = execute_query_for_user(sql, user_id)
+    return df.iloc[0][0]
 
 import pandas as pd
 import duckdb
 import pyarrow as pa
 
-
-@lru_cache
-def get_conn_for_user(user_id):
+def _get_conn_for_user(user_id):
     all_answers = get_all_answers(user_id)
     df = pd.DataFrame(all_answers['rows'])
     df.columns = all_answers['cols']
@@ -154,10 +183,30 @@ def get_conn_for_user(user_id):
     con.register("answers", table)
     return con
 
+import streamlit as st
+
+@st.cache_resource
+def st_get_conn_for_user(user_id):
+    return _get_conn_for_user(user_id)
+
+
+@lru_cache
+def get_conn_for_user(user_id):
+    return _get_conn_for_user(user_id)
+
 def normalize_timestamps(df):
     for col in df.select_dtypes(include=["datetime64[ns]"]):
         df[col] = df[col].dt.strftime("%Y-%m-%d %H:%M:%S")
     return df
+
+
+def execute_query_for_user(sql, user_id):
+    print(f'ST FAST QUERY: {sql}\n')
+    con = st_get_conn_for_user(user_id)
+    res = con.execute(sql).fetchdf()
+    res = normalize_timestamps(res)
+    return res
+
 
 @tool
 def fast_query(sql: str, config: RunnableConfig):
