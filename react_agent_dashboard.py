@@ -225,23 +225,23 @@ def create_agent_dashboard():
         st_process_user_prompt(st.session_state.agent, prompt)
 
     # Example queries section
-    with st.expander("💡 Example Queries"):
-        st.markdown("""
-        Try these example queries to get started:
-        """)
+    # with st.expander("💡 Example Queries"):
+    st.markdown("""
+    Try these example queries to get started:
+    """)
 
-        example_queries = [
-            "What are the most common slide types used?",
-            "Show me engagement patterns by slide type",
-            "Show me recent presentation activity",
-            "Which questions have the lowest accuracy rates?",
-            "Which presentations have the highest participation rates?",
-            "What are the trending topics in open-ended responses?"
-        ]
+    example_queries = [
+        "What are the most common slide types used?",
+        "Show me engagement patterns by slide type",
+        "Show me recent presentation activity",
+        "Which questions have the lowest accuracy rates?",
+        "Which presentations have the highest participation rates?",
+        "What are the trending topics in open-ended responses?"
+    ]
 
-        for query in example_queries:
-            if st.button(f"Try: {query}", key=f"example_{hash(query)}"):
-                st_process_user_prompt(st.session_state.agent, query)
+    for query in example_queries:
+        if st.button(f"Try: {query}", key=f"example_{hash(query)}"):
+            st_process_user_prompt(st.session_state.agent, query)
 
     # Footer
     st.markdown("---")
