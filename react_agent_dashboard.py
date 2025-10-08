@@ -233,7 +233,7 @@ def create_agent_dashboard():
         st.metric('Total sessions', presentation_count)
     with col2:
         response_count = get_response_count(st.session_state.current_user_id)
-        st.metric('Responses Collected', 324)
+        st.metric('Responses Collected', response_count)
     with col3:
         slide_count = get_slide_count(st.session_state.current_user_id)
         st.metric('Slides Created', slide_count)
