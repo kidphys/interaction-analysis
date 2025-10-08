@@ -115,12 +115,16 @@ def get_all_answers(user_id: str):
         dp.title as presentation_title,
         fa.submitted_answer_text,
         fa.correct,
-        fa.createdat
+        fa.createdat,
+        dpart.name as participant_name,
+        dpart.email as particpant_email
     FROM aha_report_v5.fact_answers fa
     JOIN aha_report_v5.dim_questions dq
         ON fa.question_id = dq.id
     JOIN aha_report_v5.dim_presentations dp
         ON fa.master_presentation_id = dp.id
+    JOIN aha_report_v5.dim_participants dpart
+        ON fa.participant_id = dpart.participant_id
     WHERE fa.user_id = '{user_id}' -- Replace with actual user ID or bind parameter
     """
     try:
@@ -224,6 +228,8 @@ def fast_query(sql: str, config: RunnableConfig):
         submitted_answer_text (varchar): the answer that this participant submitted
         correct (boolean): true if the answer is correct
         createdat (timestamp)
+        participant_name (varchar)
+        participant_email (varchar)
     """
     print(f'\n')
     print(f'FAST QUERY: {sql}\n')
