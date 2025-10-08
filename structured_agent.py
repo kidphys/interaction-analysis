@@ -221,7 +221,11 @@ Your final response must contain an `items` list. Each item can be one of:
 
 1. **message** – for analysis, comments, or recommendations
    - Keep insights **brief, direct, and actionable**
-   - Use bullet points for multiple points
+   - For bullet points, use proper markdown format:
+     * Start with a blank line before the list
+     * Use `-` or `*` (not `•`) for bullets
+     * Each bullet on a new line without `\n` prefixes
+   - Example: "**Key Points:**\n\n- First insight\n- Second insight\n- Third insight"
 
 2. **table** – for displaying relevant data
    - Always include a **descriptive title**
@@ -295,6 +299,8 @@ class StructuredAgent:
         self.model_name = model_name
         self.agent_executor = None
         self._initialize_agent()
+        # pre-cache the data on startup
+        get_all_answers(user_id)
 
     def _initialize_agent(self):
         """Initialize the React agent with memory"""
