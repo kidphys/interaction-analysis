@@ -274,9 +274,13 @@ def create_agent_dashboard():
         for query in example_queries:
             if st.button(f"{query}", key=f"example_{hash(query)}", icon=":material/search_insights:"):
                 st.session_state.query = query
+                st.rerun()  # Explicit rerun after setting the query
 
     if 'query' in st.session_state and st.session_state.query:
-        st_process_user_prompt(st.session_state.agent, st.session_state.query)
+        query_to_process = st.session_state.query
+        st.session_state.query = None  # Clear it BEFORE processing
+        st_process_user_prompt(st.session_state.agent, query_to_process)
+
 
     # Footer
     st.markdown("---")
