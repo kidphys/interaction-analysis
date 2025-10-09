@@ -1,10 +1,13 @@
 [theme]
-primaryColor = "#6A1EBB"
+primaryColor = "#434373"
 backgroundColor = "#FFFFFF"
 secondaryBackgroundColor = "#F0F2F6"
 textColor = "#262730"
 font = "Plus Jakarta Sans:https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap"
 codeFont = "'Space Mono':https://fonts.googleapis.com/css2?family=Space+Mono&display=swap"
+
+
+blueColor = "#434373"
 
 categoricalColors = [
     "#434373",
@@ -19,5 +22,17 @@ categoricalColors = [
     "#4A4A4A"
 ]
 
+chartSequentialColors = [
+    "#434373",
+    "#16C49A",
+    "#FF9068",
+    "#FF7747",
+    "#13A181",
+    "#20E8B5",
+    "#FF4081",
+    "#FFE32C",
+    "#6A1EBB",
+    "#4A4A4A"
+]
 [theme.sidebar]
 backgroundColor = "#F9F5FF"

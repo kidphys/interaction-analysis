@@ -126,27 +126,7 @@ def display_structured_response(response_content):
 
 def create_configuration():
     st.image('https://ahaslides.com/wp-content/uploads/2025/05/logo-full.png')
-    user_id = st.text_input("User ID", value=st.session_state.current_user_id, help="Enter the user ID for data filtering")
 
-    # Update session state when user_id changes
-    if user_id != st.session_state.current_user_id:
-        st.session_state.current_user_id = user_id
-
-    # st.markdown("---")
-    # st.markdown("### About")
-    # st.markdown("""
-    # This dashboard connects to your Redshift data warehouse and uses AI to:
-    # - Answer questions about your data
-    # - Provide recommendations based on analysis
-    # - Generate SQL queries automatically
-    # """)
-
-    # st.info("""
-    # 💡 **Tips for better responses:**
-    # - Ask specific questions to avoid response truncation
-    # - Break complex requests into smaller parts
-    # - If you get a truncation warning, try rephrasing your question more concisely
-    # """)
 
     if st.button("Clear Chat History"):
         st.session_state.messages = []
@@ -193,12 +173,11 @@ def st_process_user_prompt(agent, prompt):
 
     st.rerun()
 
-def create_agent_dashboard():
+def create_agent_dashboard(username, user_id):
     # Page configuration
     st.set_page_config(
         page_title="AI Data Assistant",
         page_icon="🤖",
-        layout="wide"
     )
 
     # Initialize session state
@@ -207,14 +186,14 @@ def create_agent_dashboard():
     if 'agent_executor' not in st.session_state:
         st.session_state.agent_executor = None
     if 'current_user_id' not in st.session_state:
-        st.session_state.current_user_id = "1472007"
+        st.session_state.current_user_id = user_id
 
     if 'agent' not in st.session_state:
         st.session_state.agent = StructuredAgent(user_id=st.session_state.current_user_id)
 
 
     # Main UI
-    st.subheader("Hi Duke")
+    st.subheader(f"Hi {username.capitalize()}")
     st.markdown("Welcome to Data Chat - your assistant for session analyatics.")
 
     if 'query' not in st.session_state:
@@ -264,17 +243,27 @@ def create_agent_dashboard():
         st.session_state.query = None  # Clear it BEFORE processing
         st_process_user_prompt(st.session_state.agent, query_to_process)
 
-    # Chat input
-    if prompt := st.chat_input("Ask me anything about your data..."):
-        st_process_user_prompt(st.session_state.agent, prompt)
 
+    if prompt := st.chat_input("Ask about your sessions, slides, or audience insights..."):
+        st_process_user_prompt(st.session_state.agent, prompt)
 
     # Sidebar for configuration
     with st.sidebar:
         create_configuration()
 
 
+
 if __name__ == "__main__":
-    _, chat_col, _ = st.columns([1, 4, 1])
-    with chat_col:
-        create_agent_dashboard()
+    query_params = st.query_params
+    user = query_params.get("user", "duke")  # Default to "home"
+    user_map = {
+        'tara': 3146502,
+        'april': 2992027,
+        'kiotViet': 259137,
+        'cheryl': 1918789,
+        'duke': 1472007,
+    }
+    if user in user_map:
+        create_agent_dashboard(user, user_map.get(user))
+    else:
+        st.write(f'Not supported user: {user}')
