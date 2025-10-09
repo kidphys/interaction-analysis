@@ -100,8 +100,12 @@ def run_query_tool(sql: str, config: RunnableConfig):
         traceback.print_exc()
         return f"Error executing query: {str(e)}"
 
+from diskcache import Cache
 
-@lru_cache
+cache = Cache('./cache_directory')
+
+# @lru_cache
+@cache.memoize()
 def get_all_answers(user_id: str):
     sql = f"""
     SELECT
@@ -194,7 +198,6 @@ def st_get_conn_for_user(user_id):
     return _get_conn_for_user(user_id)
 
 
-@lru_cache
 def get_conn_for_user(user_id):
     return _get_conn_for_user(user_id)
 
