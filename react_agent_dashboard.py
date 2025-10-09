@@ -275,6 +275,6 @@ def create_agent_dashboard():
 
 
 if __name__ == "__main__":
-    chat_col, _ = st.columns([2, 1])
+    _, chat_col, _ = st.columns([1, 4, 1])
     with chat_col:
         create_agent_dashboard()
