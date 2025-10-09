@@ -22,6 +22,7 @@ def stream_agent_response_ui(agent: StructuredAgent, prompt):
     # Create a placeholder for streaming output
     message_placeholder = st.empty()
     tool_executions = []
+    info_placeholder = st.empty()
 
     try:
         for step in agent.stream_query(prompt):
@@ -36,7 +37,8 @@ def stream_agent_response_ui(agent: StructuredAgent, prompt):
                         # Display tool executions if any
                         if tool_executions:
                             for tool_info in tool_executions:
-                                st.info(f"🔧 Executed: {tool_info}")
+                                info_placeholder.info(f"🔧 Executed: {tool_info}")
+                                # st.info(f"🔧 Executed: {tool_info}")
 
                         # Use helper function to display response
                         message_placeholder.empty()
@@ -50,7 +52,8 @@ def stream_agent_response_ui(agent: StructuredAgent, prompt):
                         # Track tool execution
                         tool_name = getattr(last_message, 'name', 'Unknown Tool')
                         tool_executions.append(f"{tool_name}")
-                        st.info(f"🔧 Executing: {tool_name}...")
+                        # st.info(f"🔧 Executing: {tool_name}...")
+                        info_placeholder.info(f"🔧 Executing: {tool_name}...")
         print(f'\n\nFinished streaming agent response\n')
         print(f'{type(agent.get_structured_output())}: {agent.get_structured_output()}')
         return agent.get_structured_output()
@@ -123,7 +126,6 @@ def display_structured_response(response_content):
 
 def create_configuration():
     st.image('https://ahaslides.com/wp-content/uploads/2025/05/logo-full.png')
-    st.header("Configuration")
     user_id = st.text_input("User ID", value=st.session_state.current_user_id, help="Enter the user ID for data filtering")
 
     # Update session state when user_id changes
@@ -159,11 +161,13 @@ def create_configuration():
 
 def st_process_user_prompt(agent, prompt):
     st.session_state.messages.append({"role": "user", "content": prompt})
+
+
     with st.chat_message("user"):
         st.markdown(prompt)
 
     with st.chat_message("assistant"):
-        with st.spinner("Thinking and analyzing data..."):
+        with st.spinner("..."):
             try:
                 response = stream_agent_response_ui(agent, prompt)
                 if response:
@@ -189,20 +193,6 @@ def st_process_user_prompt(agent, prompt):
 
     st.rerun()
 
-def styled_metric(label, value, delta=None):
-    st.markdown(f"""
-    <div style="
-        background-color: #f0f2f6;
-        padding: 20px;
-        border-radius: 10px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    ">
-        <h4 style="color: #666; margin: 0;">{label}</h4>
-        <h2 style="color: #111; margin: 10px 0;">{value}</h2>
-        <p style="color: #28a745; margin: 0;">{delta if delta else ''}</p>
-    </div>
-    """, unsafe_allow_html=True)
-
 def create_agent_dashboard():
     # Page configuration
     st.set_page_config(
@@ -227,22 +217,22 @@ def create_agent_dashboard():
     st.subheader("Hi Duke")
     st.markdown("Welcome to Data Chat - your assistant for session analyatics.")
 
-    st.markdown("Here are some quick insights from all your sessions:")
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        with st.container(border=True, height=150):
-            presentation_count = get_presentation_count(st.session_state.current_user_id)
-            st.metric('Total sessions', presentation_count)
-    with col2:
-        with st.container(border=True, height=150):
-            response_count = get_response_count(st.session_state.current_user_id)
-            st.metric('Responses Collected', response_count)
-    with col3:
-        with st.container(border=True, height=150):
-            slide_count = get_slide_count(st.session_state.current_user_id)
-            st.metric('Slides Created', slide_count)
+    if 'query' not in st.session_state:
+        st.markdown("Here are some quick insights from all your sessions:")
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            with st.container(border=True, height=150):
+                presentation_count = get_presentation_count(st.session_state.current_user_id)
+                st.metric('Total sessions', presentation_count)
+        with col2:
+            with st.container(border=True, height=150):
+                response_count = get_response_count(st.session_state.current_user_id)
+                st.metric('Responses Collected', response_count)
+        with col3:
+            with st.container(border=True, height=150):
+                slide_count = get_slide_count(st.session_state.current_user_id)
+                st.metric('Slides Created', slide_count)
 
-    # Display chat messages
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             if message["role"] == "assistant":
@@ -252,15 +242,8 @@ def create_agent_dashboard():
 
 
 
-    # Chat input
-    if prompt := st.chat_input("Ask me anything about your data..."):
-        st_process_user_prompt(st.session_state.agent, prompt)
-
-
-    # Example queries section
-    # with st.expander("💡 Example Queries"):
     st.markdown("""
-    Want deeper insight? ask me anything about your presentations, or click a suggestion
+    Want deeper insight? Ask me anything about your presentations, or click a suggestion
     """)
 
     example_queries = [
@@ -281,17 +264,10 @@ def create_agent_dashboard():
         st.session_state.query = None  # Clear it BEFORE processing
         st_process_user_prompt(st.session_state.agent, query_to_process)
 
+    # Chat input
+    if prompt := st.chat_input("Ask me anything about your data..."):
+        st_process_user_prompt(st.session_state.agent, prompt)
 
-    # Footer
-    st.markdown("---")
-    st.markdown(
-        """
-        <div style='text-align: center; color: gray;'>
-            Powered by LangChain 🦜🔗 and Streamlit
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
 
     # Sidebar for configuration
     with st.sidebar:
@@ -299,4 +275,6 @@ def create_agent_dashboard():
 
 
 if __name__ == "__main__":
-    create_agent_dashboard()
+    chat_col, _ = st.columns([2, 1])
+    with chat_col:
+        create_agent_dashboard()

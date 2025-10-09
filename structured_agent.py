@@ -121,7 +121,7 @@ def get_all_answers(user_id: str):
         fa.correct,
         fa.createdat,
         dpart.name as participant_name,
-        dpart.email as particpant_email
+        dpart.email as participant_email
     FROM aha_report_v5.fact_answers fa
     JOIN aha_report_v5.dim_questions dq
         ON fa.question_id = dq.id
