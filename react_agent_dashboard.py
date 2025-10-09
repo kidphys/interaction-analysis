@@ -122,6 +122,7 @@ def display_structured_response(response_content):
 
 
 def create_configuration():
+    st.image('https://ahaslides.com/wp-content/uploads/2025/05/logo-full.png')
     st.header("Configuration")
     user_id = st.text_input("User ID", value=st.session_state.current_user_id, help="Enter the user ID for data filtering")
 
@@ -129,21 +130,21 @@ def create_configuration():
     if user_id != st.session_state.current_user_id:
         st.session_state.current_user_id = user_id
 
-    st.markdown("---")
-    st.markdown("### About")
-    st.markdown("""
-    This dashboard connects to your Redshift data warehouse and uses AI to:
-    - Answer questions about your data
-    - Provide recommendations based on analysis
-    - Generate SQL queries automatically
-    """)
+    # st.markdown("---")
+    # st.markdown("### About")
+    # st.markdown("""
+    # This dashboard connects to your Redshift data warehouse and uses AI to:
+    # - Answer questions about your data
+    # - Provide recommendations based on analysis
+    # - Generate SQL queries automatically
+    # """)
 
-    st.info("""
-    💡 **Tips for better responses:**
-    - Ask specific questions to avoid response truncation
-    - Break complex requests into smaller parts
-    - If you get a truncation warning, try rephrasing your question more concisely
-    """)
+    # st.info("""
+    # 💡 **Tips for better responses:**
+    # - Ask specific questions to avoid response truncation
+    # - Break complex requests into smaller parts
+    # - If you get a truncation warning, try rephrasing your question more concisely
+    # """)
 
     if st.button("Clear Chat History"):
         st.session_state.messages = []
@@ -223,20 +224,23 @@ def create_agent_dashboard():
 
 
     # Main UI
-    st.title("Hi Duke")
+    st.subheader("Hi Duke")
     st.markdown("Welcome to Data Chat - your assistant for session analyatics.")
 
     st.markdown("Here are some quick insights from all your sessions:")
     col1, col2, col3 = st.columns(3)
     with col1:
-        presentation_count = get_presentation_count(st.session_state.current_user_id)
-        st.metric('Total sessions', presentation_count)
+        with st.container(border=True, height=150):
+            presentation_count = get_presentation_count(st.session_state.current_user_id)
+            st.metric('Total sessions', presentation_count)
     with col2:
-        response_count = get_response_count(st.session_state.current_user_id)
-        st.metric('Responses Collected', response_count)
+        with st.container(border=True, height=150):
+            response_count = get_response_count(st.session_state.current_user_id)
+            st.metric('Responses Collected', response_count)
     with col3:
-        slide_count = get_slide_count(st.session_state.current_user_id)
-        st.metric('Slides Created', slide_count)
+        with st.container(border=True, height=150):
+            slide_count = get_slide_count(st.session_state.current_user_id)
+            st.metric('Slides Created', slide_count)
 
     # Display chat messages
     for message in st.session_state.messages:
@@ -252,6 +256,7 @@ def create_agent_dashboard():
     if prompt := st.chat_input("Ask me anything about your data..."):
         st_process_user_prompt(st.session_state.agent, prompt)
 
+
     # Example queries section
     # with st.expander("💡 Example Queries"):
     st.markdown("""
@@ -259,17 +264,20 @@ def create_agent_dashboard():
     """)
 
     example_queries = [
-        "What are the most common slide types used?",
-        "Show me engagement patterns by slide type",
-        "Show me recent presentation activity",
-        "Which questions have the lowest accuracy rates?",
-        "Which presentations have the highest participation rates?",
-        "What are the trending topics in open-ended responses?"
+        "Show engagement & completion rates",
+        "Who engaged the most?",
+        "Which questions were most commonly wrong?",
+        "Compare sessions over time"
     ]
 
-    for query in example_queries:
-        if st.button(f"Try: {query}", key=f"example_{hash(query)}"):
-            st_process_user_prompt(st.session_state.agent, query)
+    with st.container(horizontal=True):
+        for query in example_queries:
+            if st.button(f"{query}", key=f"example_{hash(query)}"):
+                st.session_state.query = query
+                # st_process_user_prompt(st.session_state.agent, query)
+
+    if 'query' in st.session_state and st.session_state.query:
+        st_process_user_prompt(st.session_state.agent, st.session_state.query)
 
     # Footer
     st.markdown("---")
