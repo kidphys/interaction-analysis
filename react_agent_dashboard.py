@@ -125,7 +125,6 @@ def display_structured_response(response_content):
 
 
 def create_configuration():
-    st.image('https://ahaslides.com/wp-content/uploads/2025/05/logo-full.png')
 
 
     if st.button("Clear Chat History"):
@@ -194,7 +193,7 @@ def create_agent_dashboard(username, user_id):
 
     # Main UI
     st.subheader(f"Hi {username.capitalize()}")
-    st.markdown("Welcome to Data Chat - your assistant for session analyatics.")
+    st.markdown("Welcome to Data Chat - your assistant for session analytics.")
 
     if 'query' not in st.session_state:
         st.markdown("Here are some quick insights from all your sessions:")
@@ -254,6 +253,7 @@ def create_agent_dashboard(username, user_id):
 
 
 if __name__ == "__main__":
+    st.logo('https://ahaslides.com/wp-content/uploads/2025/05/logo-full.png')
     query_params = st.query_params
     user = query_params.get("user", "duke")  # Default to "home"
     user_map = {
