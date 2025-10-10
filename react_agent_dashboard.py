@@ -246,14 +246,17 @@ def create_agent_dashboard(username, user_id):
     if prompt := st.chat_input("Ask about your sessions, slides, or audience insights..."):
         st_process_user_prompt(st.session_state.agent, prompt)
 
-    # Sidebar for configuration
-    with st.sidebar:
-        create_configuration()
+    # # Sidebar for configuration
+    # with st.sidebar:
+    #     create_configuration()
+    # def query_builder_page():
+    #     st.title("Query builder")
+
+    # pg = st.navigation(["query_builder_dashboard.py", query_builder_page])
+    # pg.run()
 
 
-
-if __name__ == "__main__":
-    st.logo('https://ahaslides.com/wp-content/uploads/2025/05/logo-full.png')
+def agent_dashboard_page():
     query_params = st.query_params
     user = query_params.get("user", "duke")  # Default to "home"
     user_map = {
@@ -267,3 +270,12 @@ if __name__ == "__main__":
         create_agent_dashboard(user, user_map.get(user))
     else:
         st.write(f'Not supported user: {user}')
+
+
+if __name__ == "__main__":
+    st.logo('https://ahaslides.com/wp-content/uploads/2025/05/logo-full.png')
+    pg = st.navigation([
+        st.Page(agent_dashboard_page, title="Agent"),
+        st.Page("query_builder_dashboard.py", title="Query builder")
+    ])
+    pg.run()
