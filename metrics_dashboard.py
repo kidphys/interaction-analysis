@@ -3,11 +3,25 @@ from presentation_agent import PresentationAgent
 from react_agent_dashboard import display_structured_response, st_process_user_prompt
 from warehouse_v5_repo import PresentationData, PresentationDataSQL, get_recent_presentations
 
-# Set page configuration
+user_map = {
+    'tara': 3146502,
+    'april': 2992027,
+    'kiotViet': 259137,
+    'cheryl': 1918789,
+    'duke': 1472007,
+}
+
+query_params = st.query_params
+user = query_params.get("user", "duke")  # Default to "home"
+if user in user_map:
+    user_id = user_map.get(user)
+else:
+    st.write(f'Not supported user: {user}')
+
 st.set_page_config(
-    page_title="Metrics Dashboard",
-    layout="wide",
-    initial_sidebar_state="collapsed"
+    page_title="AI Data Assistant",
+    page_icon="🤖",
+    layout="wide"
 )
 
 # Dashboard header with presentation selector
@@ -16,7 +30,6 @@ col_title, col_selector = st.columns([2, 1])
 with col_title:
     st.title("📊 Metrics Dashboard")
 
-user_id = 2992027
 recent_presentations = get_recent_presentations(user_id)
 
 with col_selector:
@@ -59,8 +72,8 @@ tab1, tab2, tab3 = st.tabs(["Overview", "Slides", "Participant"])
 with tab1:
     if presentation_id:
 
-        # prez_data = PresentationData(presentation_id)
-        prez_data = PresentationDataSQL(presentation_id)
+        prez_data = PresentationData(presentation_id)
+        # prez_data = PresentationDataSQL(presentation_id)
 
         # Get real data for the selected presentation
         total_joined = prez_data.get_total_participants_joined()
@@ -439,61 +452,4 @@ with tab3:
 #     st.markdown("- Comparative performance metrics")
 #     st.markdown("- Seasonal trends")
 
-with st.sidebar:
-    # Page configuration
-    st.set_page_config(
-        layout="wide"
-    )
 
-    # Initialize session state
-    if 'messages' not in st.session_state:
-        st.session_state.messages = []
-
-    agent = PresentationAgent(presentation_id=presentation_id)
-
-
-    # Chat interface
-    st.markdown("### Chat with your Data")
-
-    # Display chat messages
-    for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            if message["role"] == "assistant":
-                display_structured_response(message['content'])
-            else:
-                st.markdown(message['content'])
-
-
-
-    # Chat input
-    if prompt := st.chat_input("Ask me anything about your data..."):
-        st_process_user_prompt(agent, prompt)
-
-    # Example queries section
-    with st.expander("💡 Example Queries"):
-        st.markdown("""
-        Try these example queries to get started:
-        """)
-
-        example_queries = [
-            "What are the most common slide types used?",
-            "Show me engagement patterns by slide type",
-            "Show me recent presentation activity",
-            "Which questions have the lowest accuracy rates?",
-            "What are the trending topics in open-ended responses?"
-        ]
-
-        for query in example_queries:
-            if st.button(f"Try: {query}", key=f"example_{hash(query)}"):
-                st_process_user_prompt(agent, query)
-
-    # Footer
-    st.markdown("---")
-    st.markdown(
-        """
-        <div style='text-align: center; color: gray;'>
-            Powered by LangChain 🦜🔗 and Streamlit
-        </div>
-        """,
-        unsafe_allow_html=True
-    )

@@ -177,6 +177,7 @@ def create_agent_dashboard(username, user_id):
     st.set_page_config(
         page_title="AI Data Assistant",
         page_icon="🤖",
+        layout="centered"
     )
 
     # Initialize session state
@@ -255,17 +256,17 @@ def create_agent_dashboard(username, user_id):
     # pg = st.navigation(["query_builder_dashboard.py", query_builder_page])
     # pg.run()
 
+user_map = {
+    'tara': 3146502,
+    'april': 2992027,
+    'kiotViet': 259137,
+    'cheryl': 1918789,
+    'duke': 1472007,
+}
 
 def agent_dashboard_page():
     query_params = st.query_params
     user = query_params.get("user", "duke")  # Default to "home"
-    user_map = {
-        'tara': 3146502,
-        'april': 2992027,
-        'kiotViet': 259137,
-        'cheryl': 1918789,
-        'duke': 1472007,
-    }
     if user in user_map:
         create_agent_dashboard(user, user_map.get(user))
     else:
@@ -276,6 +277,7 @@ if __name__ == "__main__":
     st.logo('https://ahaslides.com/wp-content/uploads/2025/05/logo-full.png')
     pg = st.navigation([
         st.Page(agent_dashboard_page, title="Agent"),
-        st.Page("query_builder_dashboard.py", title="Query builder")
+        st.Page('metrics_dashboard.py', title="Presentation metrics"),
+        st.Page("query_builder_dashboard.py", title="Build your own report")
     ])
     pg.run()

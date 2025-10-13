@@ -203,6 +203,11 @@ def enhance_slides_engagement_stats(df, total_participants):
 
     return df
 
+from diskcache import Cache
+
+cache = Cache('./cache_directory')
+
+@cache.memoize()
 def get_all_answers_full(presentation_id):
     """
     Return all the answers from a presentation, with dim presentation / slide
@@ -318,7 +323,6 @@ class PresentationData:
 
     def __init__(self, presentation_id: str):
         self.presentation_id = presentation_id
-        create_temp_table(presentation_id)
         self.df = get_all_answers_full(presentation_id)
         self.total_participants = get_total_participants_joined(presentation_id)
 
@@ -379,7 +383,7 @@ class PresentationData:
         return len(slide_df)
 
     def get_average_response_time(self):
-        return self.df['Answer Time Seconds'].mean()
+        return self.df['Answer Time Seconds'].dropna().mean()
 
     def get_slides_performance_table(self):
         """
