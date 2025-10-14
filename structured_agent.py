@@ -129,7 +129,7 @@ def get_all_answers(user_id: str):
         ON fa.master_presentation_id = dp.id
     JOIN aha_report_v5.dim_participants dpart
         ON fa.participant_id = dpart.participant_id
-    WHERE fa.user_id = '{user_id}' -- Replace with actual user ID or bind parameter
+    WHERE dp.user_id = '{user_id}' -- Replace with actual user ID or bind parameter
     """
     try:
         rows, cols = execute_with_columns(sql)
