@@ -100,6 +100,10 @@ def _execute_with_columns(sql, create_engine: Callable):
 
 @lru_cache(maxsize=1)
 def execute_with_columns(sql):
-    return _execute_with_columns(sql, _create_engine)
+    print(f'Execute_with_columns: {sql}')
+    now = arrow.now()
+    rows, cols = _execute_with_columns(sql, _create_engine)
+    print(f'{len(rows)} rows in {arrow.now() - now}')
+    return rows, cols
 
 

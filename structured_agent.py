@@ -13,6 +13,8 @@ import traceback
 from dotenv import load_dotenv
 import json
 
+from user_data_parallel_query import get_user_answers_parallel
+
 # Load environment variables
 load_dotenv('.env.local')
 
@@ -104,9 +106,26 @@ from diskcache import Cache
 
 cache = Cache('./cache_directory')
 
-# @lru_cache
+
+def execute_sql_return_df(sql):
+    rows, cols = execute_with_columns(sql)
+    df = pd.DataFrame(rows)
+    df.columns = cols
+    return df
+
+
 @cache.memoize()
 def get_all_answers(user_id: str):
+    df = get_user_answers_parallel(user_id, execute_sql_return_df)
+    return {
+        'rows': df.values.tolist(),
+        'cols': df.columns.tolist()
+    }
+
+
+# @lru_cache
+# @cache.memoize()
+def get_all_answers_slow(user_id: str):
     sql = f"""
     SELECT
         fa.user_id,

@@ -58,6 +58,36 @@ def get_participant_stats(presentation_id: str):
             'total_submitted': submitted_future.result()
         }
 
+def get_recent_presentations_fast(user_id: int):
+    """
+    Return a list of presentation sorted by last updated date
+    """
+    sql = f"""
+    SELECT id, title, updatedat as last_updated_at
+    FROM aha_report_v5.dim_presentations
+    WHERE user_id = {user_id}
+    ORDER BY updatedat DESC
+    """
+    rows = execute(sql)
+    return pd.DataFrame(rows, columns=['Id', 'Title', 'Last Updated At'])
+
+
+def get_recent_presentations_by_reaction(user_id: int):
+    """
+    Return a list of presentation sorted by last answered createdat
+    """
+    sql = f"""
+    SELECT fr.master_presentation_id, dp.title, MAX(fr.updatedat) as last_reacted_at
+    FROM aha_report_v5.fact_reactions fr
+    JOIN aha_report_v5.dim_presentations dp
+        ON fr.master_presentation_id = dp.id
+    WHERE dp.user_id = {user_id}
+    GROUP BY fr.master_presentation_id, dp.title
+    ORDER BY MAX(fr.updatedat) DESC
+    """
+    rows = execute(sql)
+    return pd.DataFrame(rows, columns=['Id', 'Title', 'Last Reacted At'])
+
 
 def get_recent_presentations(user_id: int):
     """
@@ -70,7 +100,7 @@ def get_recent_presentations(user_id: int):
         ON fa.master_presentation_id = dp.id
     LEFT JOIN aha_report_v5.dim_deleted_answers dda
         ON fa.id = dda.id
-    WHERE fa.user_id = {user_id} AND dda.id IS NULL
+    WHERE dp.user_id = {user_id} AND dda.id IS NULL
     GROUP BY fa.master_presentation_id, dp.title
     ORDER BY MAX(fa.createdat) DESC
     """
@@ -148,6 +178,24 @@ def get_total_submissions(presentation_id: str):
     rows = execute(sql)
     df = pd.DataFrame(rows, columns=['Total Submissions', 'Total Participants'])
     df['Submission Ratio'] = df['Total Submissions'] / df['Total Participants']
+    return df
+
+
+def get_slides(presentation_id: str):
+    sql = f"""
+    SELECT
+        slide_id,
+        slide_title,
+        slide_order,
+        slide_type
+    FROM
+        aha_report_v5.dim_questions ds
+    WHERE
+        ds.master_presentation_id = {presentation_id}
+    GROUP BY ds.slide_id, ds.slide_title, ds.slide_order, ds.slide_type
+    """
+    rows = execute(sql)
+    df = pd.DataFrame(rows, columns=['Slide Id', 'Slide Title', 'Slide Order', 'Slide Type'])
     return df
 
 
@@ -608,4 +656,32 @@ def query_question_engagement_data(slide_title: str):
 def get_question_engagement_stats(slide_title):
     df = query_question_engagement_data(slide_title)
     df['Accuracy'] = df['Correct Count'] / df['Total Submission Count']
+    return df
+
+
+def get_reactions_data_for_presentation(presentation_id):
+    sql = f"""
+    SELECT
+        participant_id,
+        slide_id,
+        master_presentation_id,
+        reaction_type,
+        submission_count,
+        deleted,
+        updatedat
+    FROM
+        aha_report_v5.fact_reactions2
+    WHERE
+        master_presentation_id = {presentation_id}
+    """
+    rows = execute(sql)
+    df = pd.DataFrame(rows, columns=[
+        'Participant Id',
+        'Slide Id',
+        'Master Presentation_Id',
+        'Reaction Type',
+        'Submission Count',
+        'Deleted',
+        'Updatedat'
+    ])
     return df
