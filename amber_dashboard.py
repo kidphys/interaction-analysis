@@ -91,16 +91,17 @@ def build_reaction_dashboard(user_id):
 
     with data_col:
         st.subheader('Slides Stats')
-        st.dataframe(tf[[col for col in tf.columns if col not in ['Slide Order']]], hide_index=True)
-
+        simple_tf = tf[[col for col in tf.columns if col not in ['Slide Order']]]
+        st.dataframe(simple_tf, hide_index=True)
+        simple_df =df[['Slide Title', 'Slide Type', 'Participant Name', 'Participant Email', 'Reaction', 'Reaction Count']]
         st.subheader('Raw Data')
-        st.dataframe(df[['Slide Title', 'Slide Type', 'Participant Name', 'Participant Email', 'Reaction', 'Reaction Count']], hide_index=True)
+        st.dataframe(simple_df, hide_index=True)
 
     with ai_col:
         if st.button('Analyze with AI...'):
             with st.spinner('Thinking about your data...'):
-                slide_reaction_data = ChartData(description='Slide Reaction stats', data=tf.to_dict(orient='records'))
-                reaction_raw_data = ChartData(description='Reaction Raw Data', data=df.to_dict(orient='records'))
+                slide_reaction_data = ChartData(description='Slide Reaction stats', data=simple_tf.to_dict(orient='records'))
+                reaction_raw_data = ChartData(description='Reaction Raw Data', data=simple_df.to_dict(orient='records'))
                 comment = get_comment([slide_reaction_data, reaction_raw_data])
                 st.write(comment)
 
