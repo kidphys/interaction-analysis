@@ -1,4 +1,5 @@
 import streamlit as st
+from data_commentor_agent import ChartData, get_comment
 from warehouse_v5_repo import get_reactions_data_for_presentation, get_recent_presentations, get_recent_presentations_by_reaction, get_recent_presentations_fast, get_slides
 import altair as alt
 
@@ -42,31 +43,32 @@ with col_selector:
 # Store selected presentation ID for use throughout the dashboard
 presentation_id = selected_presentation['id'] if selected_presentation else None
 
+reactions = get_reactions_data_for_presentation(presentation_id)
+slides = get_slides(presentation_id)
+df = reactions.merge(slides, on='Slide Id')
+df = df[df['Deleted'] == False]
+df = df.drop('Deleted', axis=1)
+
+reaction_to_emoji = {
+    'heart': '❤️',
+    'like': '👍',
+    'sad': '😢',
+    'wow': '😮',
+    'question': '🧐',
+    'laugh': '😆'
+}
+
+df['Reaction'] = df['Reaction Type'].map(lambda x: reaction_to_emoji.get(x, '👀'))
+df = df.rename(columns={'Submission Count': 'Reaction Count'})
+df = df.sort_values(by='Slide Order')
+df = df.drop('Reaction Type', axis=1)
+tf = df.groupby(['Slide Order', 'Slide Title', 'Reaction']).agg({'Reaction Count': 'sum', 'Participant Id': 'nunique'})
+tf = tf.rename(columns={'Participant Id': 'Participant Count'})
+tf = tf.reset_index()
+
+
 
 with col_title:
-    reactions = get_reactions_data_for_presentation(presentation_id)
-    slides = get_slides(presentation_id)
-    df = reactions.merge(slides, on='Slide Id')
-    df = df[df['Deleted'] == False]
-    df = df.drop('Deleted', axis=1)
-
-    reaction_to_emoji = {
-        'heart': '❤️',
-        'like': '👍',
-        'sad': '😢',
-        'wow': '😮',
-        'question': '🧐',
-        'laugh': '😆'
-    }
-
-    df['Reaction'] = df['Reaction Type'].map(lambda x: reaction_to_emoji.get(x, '👀'))
-    df = df.rename(columns={'Submission Count': 'Reaction Count'})
-    df = df.sort_values(by='Slide Order')
-    df = df.drop('Reaction Type', axis=1)
-    tf = df.groupby(['Slide Order', 'Slide Title', 'Reaction']).agg({'Reaction Count': 'sum', 'Participant Id': 'nunique'})
-    tf = tf.rename(columns={'Participant Id': 'Participant Count'})
-    tf = tf.reset_index()
-
 
     st.subheader('Reactions during your session')
     chart = alt.Chart(tf).mark_line(
@@ -88,8 +90,19 @@ with col_title:
     st.altair_chart(chart, use_container_width=True)
 
 
+data_col, ai_col = st.columns([2, 1])
+
+with data_col:
     st.subheader('Slides Stats')
     st.dataframe(tf[[col for col in tf.columns if col not in ['Slide Order']]], hide_index=True)
 
     st.subheader('Raw Data')
     st.dataframe(df[['Slide Title', 'Slide Type', 'Participant Name', 'Participant Email', 'Reaction', 'Reaction Count']], hide_index=True)
+
+with ai_col:
+    if st.button('Analyze with AI...'):
+        with st.spinner('Thinking about your data...'):
+            slide_reaction_data = ChartData(description='Slide Reaction stats', data=tf.to_dict(orient='records'))
+            reaction_raw_data = ChartData(description='Reaction Raw Data', data=df.to_dict(orient='records'))
+            comment = get_comment([slide_reaction_data, reaction_raw_data])
+            st.write(comment)
