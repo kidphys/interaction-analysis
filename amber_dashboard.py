@@ -23,22 +23,20 @@ def build_reaction_dashboard(user_id):
                 'last_answered': row['Last Answered At']
             })
 
-        # Default selection (first presentation)
-        default_presentation = presentation_options[0] if presentation_options else None
 
-        selected_presentation = st.selectbox(
+        selected_presentation_reaction = st.selectbox(
             "Select Presentation:",
             options=presentation_options,
             format_func=lambda x: f"{x['title'][:50]}{'...' if len(x['title']) > 50 else ''}",
             index=0 if presentation_options else None,
-            key="selected_presentation"
+            key="selected_presentation_reaction"
         )
 
-        if selected_presentation:
-            st.caption(f"Last activity: {selected_presentation['last_answered']}")
+        if selected_presentation_reaction:
+            st.caption(f"Last activity: {selected_presentation_reaction['last_answered']}")
 
     # Store selected presentation ID for use throughout the dashboard
-    presentation_id = selected_presentation['id'] if selected_presentation else None
+    presentation_id = selected_presentation_reaction['id'] if selected_presentation_reaction else None
 
     reactions = get_reactions_data_for_presentation(presentation_id)
     slides = get_slides(presentation_id)
@@ -58,8 +56,9 @@ def build_reaction_dashboard(user_id):
     df['Reaction'] = df['Reaction Type'].map(lambda x: reaction_to_emoji.get(x, '👀'))
     df = df.rename(columns={'Submission Count': 'Reaction Count'})
     df = df.sort_values(by='Slide Order')
+    df['Slide Idx'] = df['Slide Order'].rank(method='dense').astype(int)
     df = df.drop('Reaction Type', axis=1)
-    tf = df.groupby(['Slide Order', 'Slide Title', 'Reaction']).agg({'Reaction Count': 'sum', 'Participant Id': 'nunique'})
+    tf = df.groupby(['Slide Idx', 'Slide Order', 'Slide Title', 'Reaction']).agg({'Reaction Count': 'sum', 'Participant Id': 'nunique'})
     tf = tf.rename(columns={'Participant Id': 'Participant Count'})
     tf = tf.reset_index()
 
@@ -72,7 +71,7 @@ def build_reaction_dashboard(user_id):
                 point=True,  # Add points
                 size=3       # Line thickness
             ).encode(
-            x=alt.X('Slide Title:N',
+            x=alt.X('Slide Idx:N',
                     sort=None,
                     axis=alt.Axis(labels=False,           # Hide the labels
                     title='Slides', labelAngle=-60, labelLimit=300, labelOverlap=False),
@@ -93,7 +92,7 @@ def build_reaction_dashboard(user_id):
         st.subheader('Slides Stats')
         simple_tf = tf[[col for col in tf.columns if col not in ['Slide Order']]]
         st.dataframe(simple_tf, hide_index=True)
-        simple_df =df[['Slide Title', 'Slide Type', 'Participant Name', 'Participant Email', 'Reaction', 'Reaction Count']]
+        simple_df =df[['Slide Idx', 'Slide Title', 'Slide Type', 'Participant Name', 'Participant Email', 'Reaction', 'Reaction Count']]
         st.subheader('Raw Data')
         st.dataframe(simple_df, hide_index=True)
 
@@ -105,9 +104,9 @@ def build_reaction_dashboard(user_id):
                 comment = get_comment([slide_reaction_data, reaction_raw_data])
                 st.write(comment)
 
+if __name__ == "__main__":
+    st.set_page_config(layout="wide")
+    user_id = 3802280
 
-st.set_page_config(layout="wide")
-user_id = 3802280
 
-
-build_reaction_dashboard(user_id)
+    build_reaction_dashboard(user_id)
