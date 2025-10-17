@@ -662,21 +662,29 @@ def get_question_engagement_stats(slide_title):
 def get_reactions_data_for_presentation(presentation_id):
     sql = f"""
     SELECT
-        participant_id,
-        slide_id,
-        master_presentation_id,
-        reaction_type,
-        submission_count,
-        deleted,
-        updatedat
+        dp.participant_id,
+        dp.name,
+        dp.email,
+        fr.slide_id,
+        fr.master_presentation_id,
+        fr.reaction_type,
+        fr.submission_count,
+        fr.deleted,
+        fr.updatedat
     FROM
-        aha_report_v5.fact_reactions2
+        aha_report_v5.fact_reactions2 fr
+    JOIN
+        aha_report_v5.dim_participants dp
+    ON
+        fr.participant_id = dp.participant_id
     WHERE
-        master_presentation_id = {presentation_id}
+        fr.master_presentation_id = {presentation_id}
     """
     rows = execute(sql)
     df = pd.DataFrame(rows, columns=[
         'Participant Id',
+        'Participant Name',
+        'Participant Email',
         'Slide Id',
         'Master Presentation_Id',
         'Reaction Type',
