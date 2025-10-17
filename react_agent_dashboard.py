@@ -1,6 +1,7 @@
 import streamlit as st
 import json
 import pandas as pd
+from amber_dashboard import build_reaction_dashboard
 from structured_agent import (
     StructuredAgent,
     InsightResponse,
@@ -273,11 +274,21 @@ def agent_dashboard_page():
         st.write(f'Not supported user: {user}')
 
 
+def reaction_dashboard_page():
+    query_params = st.query_params
+    user = query_params.get("user", "duke")  # Default to "home"
+    if user in user_map:
+        st.set_page_config(layout="wide")
+        build_reaction_dashboard(user_map.get(user))
+    else:
+        st.write(f'Not supported user: {user}')
+
 if __name__ == "__main__":
     st.logo('https://ahaslides.com/wp-content/uploads/2025/05/logo-full.png')
     pg = st.navigation([
         st.Page(agent_dashboard_page, title="Agent"),
         st.Page('metrics_dashboard.py', title="Presentation metrics"),
-        st.Page("query_builder_dashboard.py", title="Build your own report")
+        st.Page(reaction_dashboard_page, title="Reaction Metrics"),
+        st.Page("query_builder_dashboard.py", title="Build your own report"),
     ])
     pg.run()
