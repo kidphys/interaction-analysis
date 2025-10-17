@@ -63,7 +63,8 @@ with col_title:
     df = df.rename(columns={'Submission Count': 'Reaction Count'})
     df = df.sort_values(by='Slide Order')
     df = df.drop('Reaction Type', axis=1)
-    tf = df.groupby(['Slide Order', 'Slide Title', 'Reaction'])[['Reaction Count']].sum()
+    tf = df.groupby(['Slide Order', 'Slide Title', 'Reaction']).agg({'Reaction Count': 'sum', 'Participant Id': 'nunique'})
+    tf = tf.rename(columns={'Participant Id': 'Participant Count'})
     tf = tf.reset_index()
 
 
@@ -80,7 +81,7 @@ with col_title:
                 ),
         y=f'Reaction Count:Q',
         color='Reaction',
-    tooltip=['Slide Title', 'Reaction', 'Reaction Count']
+    tooltip=['Slide Title', 'Reaction', 'Reaction Count', 'Participant Count']
     ).properties(
         width=800,
     )
@@ -91,4 +92,4 @@ with col_title:
     st.dataframe(tf[[col for col in tf.columns if col not in ['Slide Order']]], hide_index=True)
 
     st.subheader('Raw Data')
-    st.dataframe(df[['Slide Title', 'Slide Type', 'Reaction', 'Reaction Count']], hide_index=True)
+    st.dataframe(df[['Slide Title', 'Slide Type', 'Participant Name', 'Participant Email', 'Reaction', 'Reaction Count']], hide_index=True)
