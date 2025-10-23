@@ -41,7 +41,7 @@ def run_query_tool(sql: str, config: RunnableConfig):
         fa.submitted_answer_text,
         fa.correct,
         fa.createdat
-    FROM aha_report_v5.fact_answers fa
+    FROM aha_report_v5.fact_answers2 fa
     JOIN aha_report_v5.dim_questions dq
         ON fa.question_id = dq.id
     JOIN aha_report_v5.dim_presentations dp

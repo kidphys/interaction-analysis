@@ -8,6 +8,10 @@ import altair as alt
 def build_reaction_dashboard(user_id):
     recent_presentations = get_recent_presentations(user_id)
 
+    if len(recent_presentations) == 0:
+        st.write(f'There are no presentation for this user: {user_id}')
+        return
+
     # Dashboard header with presentation selector
     col_title, col_selector = st.columns([2, 1])
 

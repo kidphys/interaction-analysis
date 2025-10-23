@@ -14,7 +14,7 @@ def get_wrong_often_questions_v2(user_id: int):
     COUNT(CASE WHEN fa.correct = true THEN fa.id END) AS correct_count,
     COUNT(CASE WHEN fa.correct != true THEN fa.id END) AS incorrect_count,
     COUNT(fa.id) AS total_answers
-    FROM aha_report_v5.fact_answers fa
+    FROM aha_report_v5.fact_answers2 fa
     JOIN aha_report_v5.dim_questions ds
         ON fa.slide_id = ds.id
     JOIN aha_report_v5.dim_presentations dp
@@ -41,7 +41,7 @@ def get_total_participants_joined(presentation_id: str):
 def get_total_participants_submitted(presentation_id: str):
     sql = f"""
     SELECT COUNT(DISTINCT participant_id)
-    FROM aha_report_v5.fact_answers fa
+    FROM aha_report_v5.fact_answers2 fa
     WHERE master_presentation_id = {presentation_id}
     """
     rows = execute(sql)
@@ -95,7 +95,7 @@ def get_recent_presentations(user_id: int):
     """
     sql = f"""
     SELECT fa.master_presentation_id, dp.title, MAX(fa.createdat) as last_answered_at
-    FROM aha_report_v5.fact_answers fa
+    FROM aha_report_v5.fact_answers2 fa
     JOIN aha_report_v5.dim_presentations dp
         ON fa.master_presentation_id = dp.id
     LEFT JOIN aha_report_v5.dim_deleted_answers dda
@@ -114,7 +114,7 @@ def get_average_response_time(presentation_id: str):
     """
     sql = f"""
     SELECT AVG(answer_time_seconds)
-    FROM aha_report_v5.fact_answers fa
+    FROM aha_report_v5.fact_answers2 fa
     LEFT JOIN aha_report_v5.dim_deleted_answers dda
         ON fa.id = dda.id
     WHERE fa.master_presentation_id = {presentation_id} AND dda.id IS NULL
@@ -129,7 +129,7 @@ def get_answer_stats(presentation_id: str):
         COUNT(fa.id) as total_submissions,
         COUNT(DISTINCT fa.participant_id) as total_submitted,
         AVG(fa.answer_time_seconds) as avg_response_time
-    FROM aha_report_v5.fact_answers fa
+    FROM aha_report_v5.fact_answers2 fa
     LEFT JOIN aha_report_v5.dim_deleted_answers dda
         ON fa.id = dda.id
     WHERE fa.master_presentation_id = {presentation_id}
@@ -151,7 +151,7 @@ def get_most_engaging_slides(presentation_id: str):
     """
     sql = f"""
     SELECT fa.slide_id, ds.slide_title, COUNT(DISTINCT participant_id) AS total_participants
-    FROM aha_report_v5.fact_answers fa
+    FROM aha_report_v5.fact_answers2 fa
     JOIN aha_report_v5.dim_questions ds
         ON fa.slide_id = ds.id
     LEFT JOIN aha_report_v5.dim_deleted_answers dda
@@ -170,7 +170,7 @@ def get_total_submissions(presentation_id: str):
     """
     sql = f"""
     SELECT COUNT(fa.id), COUNT(DISTINCT participant_id) AS total_participants
-    FROM aha_report_v5.fact_answers fa
+    FROM aha_report_v5.fact_answers2 fa
     LEFT JOIN aha_report_v5.dim_deleted_answers dda
         ON fa.id = dda.id
     WHERE fa.master_presentation_id = {presentation_id} AND dda.id IS NULL
@@ -213,7 +213,7 @@ def get_slides_engagement_stats(presentation_id: str):
         AVG(fa.answer_time_seconds) as avg_answer_time,
         SUM(CASE WHEN fa.correct = TRUE THEN 1 ELSE 0 END) as correct_count,
         COUNT(fa.id) as total_submissions
-    FROM aha_report_v5.fact_answers fa
+    FROM aha_report_v5.fact_answers2 fa
     JOIN aha_report_v5.dim_questions ds
         ON fa.slide_id = ds.id
     LEFT JOIN aha_report_v5.dim_deleted_answers dda
@@ -268,7 +268,7 @@ def get_all_answers_full(presentation_id):
     fa.slide_type,
     dpa.name,
     dpa.email
-    FROM aha_report_v5.fact_answers fa
+    FROM aha_report_v5.fact_answers2 fa
     JOIN aha_report_v5.dim_presentations dp
         ON fa.master_presentation_id = dp.id
     JOIN aha_report_v5.dim_questions dq
@@ -301,7 +301,7 @@ def create_temp_table(presentation_id: str):
             ds.slide_title,
             dp.title as presentation_title,
             case when dda.id is not null then true else false end as is_deleted
-        from aha_report_v5.fact_answers fa
+        from aha_report_v5.fact_answers2 fa
         join aha_report_v5.dim_questions ds
             on fa.slide_id = ds.id
         join aha_report_v5.dim_presentations dp
@@ -595,7 +595,7 @@ def get_recurring_questions(user_id: int):
         AVG(fa.answer_time_seconds) as avg_answer_time,
         SUM(CASE WHEN fa.correct = TRUE THEN 1 ELSE 0 END) as correct_count,
         COUNT(fa.id) as total_submissions
-    FROM aha_report_v5.fact_answers fa
+    FROM aha_report_v5.fact_answers2 fa
     JOIN aha_report_v5.dim_questions ds
         ON fa.slide_id = ds.id
     LEFT JOIN aha_report_v5.dim_deleted_answers dda
@@ -633,7 +633,7 @@ def query_question_engagement_data(slide_title: str):
         SUM(CASE WHEN fa.correct = TRUE THEN 1 ELSE 0 END) as correct_count,
         COUNT(fa.id) as total_submissions,
         MAX(fa.createdat) as last_answered_at
-    FROM aha_report_v5.fact_answers fa
+    FROM aha_report_v5.fact_answers2 fa
     JOIN aha_report_v5.dim_questions ds
         ON fa.slide_id = ds.id
     JOIN aha_report_v5.dim_presentations dp
