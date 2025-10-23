@@ -264,6 +264,7 @@ user_map = {
     'cheryl': 1918789,
     'duke': 1472007,
     'don': 1851905,
+    'amber': 3802280,
 }
 
 def agent_dashboard_page():
