@@ -1,7 +1,7 @@
 import streamlit as st
 import altair as alt
-from streamlist_interaction import create_stacked_category_bar_chart, enrich_audience_with_category, map_data_with_audience_category
-from warehouse_repo import get_interactions_of_presentation, get_polls_of_presentation
+from chart_util import  map_data_with_audience_category
+from warehouse_repo import get_polls_of_presentation
 
 st.set_page_config(layout="wide")
 
@@ -43,7 +43,6 @@ with col1:
                 axis=alt.Axis(labelAngle=-45)
         ),
         y=f'{y_field}:Q',  # count of interactions as the y-axis
-        xOffset='Chosen Poll:N',
         color='Category:N',
         tooltip=['Category:N', f'{y_field}:Q', 'Slidetitle:N', 'Chosen Poll:N']  # Show full slide title, interaction count, and slide order on hover
     ).properties(

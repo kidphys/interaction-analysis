@@ -96,34 +96,85 @@ with col2:
     st.session_state.selected_slide = selected_slide
 
 
+# def create_category_bar_chart(data, presentation_id, y_field='Interaction Count'):
+#     return alt.Chart(data[data['Presentationid'] == presentation_id]).mark_bar().encode(
+#         x=alt.X('Slidetitle:N', title='Slide Title',
+#                 axis=alt.Axis(labelAngle=-45), sort=['Slideorder']  # Rotate x-axis labels to make them easier to read
+#         ),
+#         y=f'{y_field}:Q',  # count of interactions as the y-axis
+#         xOffset='Category:N',
+#         color='Category:N',
+#         tooltip=['Category:N', f'{y_field}:Q', 'Slidetitle:N']  # Show full slide title, interaction count, and slide order on hover
+#     ).properties(
+#         title=df[df['Presentationid'] == presentation_id]['Presentation Name'].iloc[0]
+#     )
+
+# def create_stacked_category_bar_chart(data, presentation_id, y_field='Interaction Count'):
+#     return alt.Chart(data[data['Presentationid'] == presentation_id]).mark_bar().encode(
+#         x=alt.X('Slidetitle:N', title='Slide Title',
+#                 axis=alt.Axis(labelAngle=-45), sort=['Slideorder']  # Rotate x-axis labels to make them easier to read
+#         ),
+#         y=f'{y_field}:Q',  # count of interactions as the y-axis
+#         xOffset='Answer Text:N',
+#         color='Category:N',
+#         tooltip=['Category:N', f'{y_field}:Q', 'Slidetitle:N', 'Answer Text:N']  # Show full slide title, interaction count, and slide order on hover
+#     ).properties(
+#         title=df[df['Presentationid'] == presentation_id]['Presentation Name'].iloc[0]
+#     )
+
 def create_category_bar_chart(data, presentation_id, y_field='Interaction Count'):
-    return alt.Chart(data[data['Presentationid'] == presentation_id]).mark_bar().encode(
-        x=alt.X('Slidetitle:N', title='Slide Title',
-                axis=alt.Axis(labelAngle=-45), sort=['Slideorder']  # Rotate x-axis labels to make them easier to read
+    """
+    Fixed version: Removed xOffset and created proper stacked chart by Category
+    """
+    filtered_data = data[data['Presentationid'] == presentation_id]
+
+    return alt.Chart(filtered_data).mark_bar().encode(
+        x=alt.X('Slidetitle:N',
+                title='Slide Title',
+                axis=alt.Axis(labelAngle=-45, labelLimit=0, labelOverlap=False),
+                sort=alt.EncodingSortField(field='Slideorder', order='ascending')  # Fixed sort syntax
         ),
-        y=f'{y_field}:Q',  # count of interactions as the y-axis
-        xOffset='Category:N',
-        color='Category:N',
-        tooltip=['Category:N', f'{y_field}:Q', 'Slidetitle:N']  # Show full slide title, interaction count, and slide order on hover
+        y=alt.Y(f'{y_field}:Q', title=y_field),  # count of interactions as the y-axis
+        color=alt.Color('Category:N', title='Category'),  # Stacking by Category instead of xOffset
+        tooltip=['Category:N', f'{y_field}:Q', 'Slidetitle:N', 'Slideorder:O']
     ).properties(
-        title=df[df['Presentationid'] == presentation_id]['Presentation Name'].iloc[0]
+        title=filtered_data['Presentation Name'].iloc[0] if not filtered_data.empty else 'No Data',
+        width=800,
+        height=400
+    ).resolve_scale(
+        color='independent'
     )
 
+
 def create_stacked_category_bar_chart(data, presentation_id, y_field='Interaction Count'):
-    return alt.Chart(data[data['Presentationid'] == presentation_id]).mark_bar().encode(
-        x=alt.X('Slidetitle:N', title='Slide Title',
-                axis=alt.Axis(labelAngle=-45), sort=['Slideorder']  # Rotate x-axis labels to make them easier to read
+    """
+    Fixed version: Removed xOffset and created proper stacked chart by Answer Text
+    """
+    filtered_data = data[data['Presentationid'] == presentation_id]
+
+    return alt.Chart(filtered_data).mark_bar().encode(
+        x=alt.X('Slidetitle:N',
+                title='Slide Title',
+                axis=alt.Axis(labelAngle=-45, labelLimit=0, labelOverlap=False),
+                sort=alt.EncodingSortField(field='Slideorder', order='ascending')  # Fixed sort syntax
         ),
-        y=f'{y_field}:Q',  # count of interactions as the y-axis
-        # xOffset='Answer Text:N',
-        color='Category:N',
-        tooltip=['Category:N', f'{y_field}:Q', 'Slidetitle:N', 'Answer Text:N']  # Show full slide title, interaction count, and slide order on hover
+        y=alt.Y(f'{y_field}:Q', title=y_field),  # count of interactions as the y-axis
+        color=alt.Color('Answer Text:N',
+                       title='Answer Text',
+                       scale=alt.Scale(scheme='category20')),  # Stacking by Answer Text instead of xOffset
+        tooltip=['Category:N', f'{y_field}:Q', 'Slidetitle:N', 'Answer Text:N', 'Slideorder:O']
     ).properties(
-        title=df[df['Presentationid'] == presentation_id]['Presentation Name'].iloc[0]
+        title=filtered_data['Presentation Name'].iloc[0] if not filtered_data.empty else 'No Data',
+        width=800,
+        height=400
+    ).resolve_scale(
+        color='independent'
     )
+
 
 
 def map_data_with_audience_category(selected_slide, df):
+    # Deprecated, move to `chart_util`
     slide_type = df[df['Slideid'] == selected_slide['Slideid']]['Slidetypenormalized'].iloc[0]
     if slide_type == 'Poll':
         audience_df = df[df['Slideid'] == selected_slide['Slideid']][['Audience Name', 'Chosen Poll']]
