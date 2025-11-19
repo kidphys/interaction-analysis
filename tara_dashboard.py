@@ -1,6 +1,5 @@
 import streamlit as st
 import altair as alt
-from streamlist_interaction import create_stacked_category_bar_chart, enrich_audience_with_category, map_data_with_audience_category
 from warehouse_repo import get_wrong_often_questions_v2
 from warehouse_v5_repo import get_wrong_often_questions_v2 as v5_get_wrong_often_questions_v2
 
