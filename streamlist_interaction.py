@@ -115,7 +115,7 @@ def create_stacked_category_bar_chart(data, presentation_id, y_field='Interactio
                 axis=alt.Axis(labelAngle=-45), sort=['Slideorder']  # Rotate x-axis labels to make them easier to read
         ),
         y=f'{y_field}:Q',  # count of interactions as the y-axis
-        xOffset='Answer Text:N',
+        # xOffset='Answer Text:N',
         color='Category:N',
         tooltip=['Category:N', f'{y_field}:Q', 'Slidetitle:N', 'Answer Text:N']  # Show full slide title, interaction count, and slide order on hover
     ).properties(
