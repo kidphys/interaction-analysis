@@ -98,9 +98,7 @@ def get_recent_presentations(user_id: int):
     FROM aha_report_v5.fact_answers2 fa
     JOIN aha_report_v5.dim_presentations dp
         ON fa.master_presentation_id = dp.id
-    LEFT JOIN aha_report_v5.dim_deleted_answers dda
-        ON fa.id = dda.id
-    WHERE dp.user_id = {user_id} AND dda.id IS NULL
+    WHERE dp.user_id = {user_id}
     GROUP BY fa.master_presentation_id, dp.title
     ORDER BY MAX(fa.createdat) DESC
     """
@@ -115,9 +113,8 @@ def get_average_response_time(presentation_id: str):
     sql = f"""
     SELECT AVG(answer_time_seconds)
     FROM aha_report_v5.fact_answers2 fa
-    LEFT JOIN aha_report_v5.dim_deleted_answers dda
-        ON fa.id = dda.id
-    WHERE fa.master_presentation_id = {presentation_id} AND dda.id IS NULL
+
+    WHERE fa.master_presentation_id = {presentation_id}
     """
     rows = execute(sql)
     return rows[0][0]
@@ -130,10 +127,9 @@ def get_answer_stats(presentation_id: str):
         COUNT(DISTINCT fa.participant_id) as total_submitted,
         AVG(fa.answer_time_seconds) as avg_response_time
     FROM aha_report_v5.fact_answers2 fa
-    LEFT JOIN aha_report_v5.dim_deleted_answers dda
-        ON fa.id = dda.id
+
     WHERE fa.master_presentation_id = {presentation_id}
-        AND dda.id IS NULL
+
     """
     rows = execute(sql)
     return {
@@ -154,9 +150,8 @@ def get_most_engaging_slides(presentation_id: str):
     FROM aha_report_v5.fact_answers2 fa
     JOIN aha_report_v5.dim_questions ds
         ON fa.slide_id = ds.id
-    LEFT JOIN aha_report_v5.dim_deleted_answers dda
-        ON fa.id = dda.id
-    WHERE fa.master_presentation_id = {presentation_id} AND dda.id IS NULL
+
+    WHERE fa.master_presentation_id = {presentation_id}
     GROUP BY fa.slide_id, ds.slide_title
     ORDER BY total_participants DESC, MAX(fa.createdat) DESC
     """
@@ -171,9 +166,8 @@ def get_total_submissions(presentation_id: str):
     sql = f"""
     SELECT COUNT(fa.id), COUNT(DISTINCT participant_id) AS total_participants
     FROM aha_report_v5.fact_answers2 fa
-    LEFT JOIN aha_report_v5.dim_deleted_answers dda
-        ON fa.id = dda.id
-    WHERE fa.master_presentation_id = {presentation_id} AND dda.id IS NULL
+
+    WHERE fa.master_presentation_id = {presentation_id}
     """
     rows = execute(sql)
     df = pd.DataFrame(rows, columns=['Total Submissions', 'Total Participants'])
@@ -216,10 +210,9 @@ def get_slides_engagement_stats(presentation_id: str):
     FROM aha_report_v5.fact_answers2 fa
     JOIN aha_report_v5.dim_questions ds
         ON fa.slide_id = ds.id
-    LEFT JOIN aha_report_v5.dim_deleted_answers dda
-        ON fa.id = dda.id
+
     WHERE fa.master_presentation_id = {presentation_id}
-        AND dda.id IS NULL
+
     GROUP BY ds.slide_id, ds.slide_title, ds.slide_order, ds.slide_type
     ORDER BY ds.slide_order
     """
@@ -275,10 +268,9 @@ def get_all_answers_full(presentation_id):
         ON fa.slide_id = dq.id
     JOIN aha_report_v5.dim_participants dpa
         ON fa.participant_id = dpa.participant_id
-    LEFT JOIN aha_report_v5.dim_deleted_answers dda
-        ON fa.id = dda.id
+
     WHERE fa.master_presentation_id = {presentation_id}
-    AND dda.id IS NULL
+
     """
     rows = execute(sql)
     return pd.DataFrame(rows, columns=['Id', 'Slide Id', 'Participant Id', 'Created At', 'Correct', 'Answer Time Seconds', 'Answer Text', 'Presentation Title', 'Slide Title', 'Slide Order', 'Slide Type', 'Participant Name', 'Participant Email'])
@@ -598,10 +590,9 @@ def get_recurring_questions(user_id: int):
     FROM aha_report_v5.fact_answers2 fa
     JOIN aha_report_v5.dim_questions ds
         ON fa.slide_id = ds.id
-    LEFT JOIN aha_report_v5.dim_deleted_answers dda
-        ON fa.id = dda.id
+
     WHERE fa.user_id = {user_id}
-        AND dda.id IS NULL
+
     GROUP BY ds.slide_title
     ORDER BY presentation_count DESC
     """
@@ -638,10 +629,9 @@ def query_question_engagement_data(slide_title: str):
         ON fa.slide_id = ds.id
     JOIN aha_report_v5.dim_presentations dp
         ON fa.master_presentation_id = dp.id
-    LEFT JOIN aha_report_v5.dim_deleted_answers dda
-        ON fa.id = dda.id
+
     WHERE ds.slide_title = '{escape_str_for_sql(slide_title)}'
-        AND dda.id IS NULL
+
     GROUP BY ds.slide_title, dp.title
     ORDER BY last_answered_at ASC
     """

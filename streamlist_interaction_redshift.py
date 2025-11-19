@@ -189,7 +189,6 @@ def create_category_bar_chart(data, y_field='Interaction Count', title='Empty'):
                 axis=alt.Axis(labelAngle=-45), sort=['Slideorder']  # Rotate x-axis labels to make them easier to read
         ),
         y=f'{y_field}:Q',  # count of interactions as the y-axis
-        xOffset='Segment:N',
         color='Segment:N',
         tooltip=['Segment:N', f'{y_field}:Q', 'Slidetitle:N']  # Show full slide title, interaction count, and slide order on hover
     ).properties(

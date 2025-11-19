@@ -287,6 +287,44 @@ def reaction_dashboard_page():
 
 if __name__ == "__main__":
     st.logo('https://ahaslides.com/wp-content/uploads/2025/05/logo-full.png')
+    # This CSS will definitely hide the Deploy button
+    st.markdown("""
+    <style>
+        /* Hide the Deploy button and menu */
+        [data-testid="stToolbar"] {
+            display: none !important;
+        }
+
+        /* Hide header completely */
+        header[data-testid="stHeader"] {
+            display: none !important;
+        }
+
+        /* Backup selectors for Deploy button */
+        button[title*="Deploy"],
+        button[title*="Rerun"],
+        div[data-testid="stDecoration"] {
+            display: none !important;
+        }
+
+        /* Remove any remaining toolbar elements */
+        .stApp > header {
+            display: none !important;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+
+    st.set_page_config(
+        page_title="Your App",
+        page_icon="🚀",
+        menu_items={
+            'Get Help': None,
+            'Report a bug': None,
+            'About': None
+        }
+    )
+    # agent_dashboard_page()
+
     pg = st.navigation([
         st.Page(agent_dashboard_page, title="Agent"),
         st.Page('metrics_dashboard.py', title="Presentation metrics"),

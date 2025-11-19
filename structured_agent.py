@@ -599,16 +599,19 @@ def extract_json_from_content(content: str) -> dict:
 if __name__ == "__main__":
     # Test the agent in isolation
 
-    agent = StructuredAgent(user_id="259137")
+    user_id = 1472007
+    df = get_user_answers_parallel(user_id, execute_sql_return_df)
+    df.to_csv('sample_duke.csv')
+    # agent = StructuredAgent(user_id="259137")
 
-    # Test query
-    test_prompt = "Give me the top 5 questions with their correct answers"
+    # # Test query
+    # test_prompt = "Give me the top 5 questions with their correct answers"
 
-    step_count = 0
-    for step in agent.stream_query(test_prompt):
-        print(f'\n' + '-' * 100 + '\n')
-        print(step)
-        last_message = step["messages"][-1]
-    print('\n\nStructured Output', agent.get_structured_output())
+    # step_count = 0
+    # for step in agent.stream_query(test_prompt):
+    #     print(f'\n' + '-' * 100 + '\n')
+    #     print(step)
+    #     last_message = step["messages"][-1]
+    # print('\n\nStructured Output', agent.get_structured_output())
 
 

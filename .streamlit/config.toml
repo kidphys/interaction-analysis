@@ -1,3 +1,11 @@
+[ui]
+# Hide the top bar completely
+hideTopBar = true
+
+[browser]
+# Disable usage stats collection
+gatherUsageStats = false
+
 [theme]
 primaryColor = "#434373"
 backgroundColor = "#FFFFFF"
