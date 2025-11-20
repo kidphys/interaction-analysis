@@ -3,7 +3,18 @@ from emotional_wheel_dashboard import emotion_map
 from pulse_dashboard import create_minimal_pulse, create_pulse_chart, enrich_interaction_data
 import streamlit as st
 from warehouse_repo import get_interactions_of_presentation, get_presentations_of_user
+from warehouse_v5_repo import get_all_answers_full
 
+
+def make_legacy_compatible(answer_df):
+    # convert data to make it compatible with output of this line
+    # df = get_interactions_of_presentation(presentation_id)
+    answer_df['audienceid'] = answer_df['Participant Id']
+    answer_df['Slideid'] = answer_df['Slide Id']
+    answer_df['Slidetitle'] = answer_df['Slide Title']
+    answer_df['Slideorder'] = answer_df['Slide Order']
+    answer_df['Slidetypenormalized'] = answer_df['Slide Type']
+    return answer_df
 
 if __name__ == "__main__":
 
@@ -27,7 +38,8 @@ if __name__ == "__main__":
     else:
         presentation_id = 7021758
 
-    df = get_interactions_of_presentation(presentation_id)
+    df = get_all_answers_full(presentation_id)
+    df = make_legacy_compatible(df)
 
     if len(df) > 0:
         reaction_df = enrich_interaction_data(df)
