@@ -37,9 +37,10 @@ if __name__ == "__main__":
         st.error('No participant response to display.')
 
     df = load_reaction_data(presentation_id)
+
     all_reactions_df = get_all_slide_reactions(df, emotion_map)
-    #Create the chart
+
     if len(all_reactions_df) > 0:
-        create_emotional_wheel(all_reactions_df)
+        fig = create_emotional_wheel(all_reactions_df)
     else:
         st.error("No reaction to display.")

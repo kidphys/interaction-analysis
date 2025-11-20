@@ -115,11 +115,13 @@ def create_colored_segment_wheel(reactions_df):
 
         # Get slide information
         slide_title = slide_data['slide_title'].iloc[0] if len(slide_data) > 0 else f"Slide {slide_num}"
+        # Get slide information - cleaned for JSON safety
+        raw_slide_title = slide_data['slide_title'].iloc[0] if len(slide_data) > 0 else f"Slide {slide_num}"
+        slide_title = clean_text_for_json(raw_slide_title)
 
         # Create segments for each emotion type in this slide
         for emotion_type in emotions:
             emotion_data = slide_data[slide_data['reaction_type'] == emotion_type]
-
             if len(emotion_data) > 0:
                 submission_count = emotion_data['submission_count'].iloc[0]
                 emotion_color = emotion_data['emotion_color'].iloc[0]
@@ -154,7 +156,7 @@ def create_colored_segment_wheel(reactions_df):
                 name=f"Slide {slide_num}: {submission_count} {emotion_emoji}",
                 showlegend=False,
                 hovertemplate=(
-                    f"<b>Slide {slide_num}</b><br>"
+                    f"<b>Slide #{slide_num} - {slide_title}</b><br>"
                     f"Emotion: {emotion_emoji} {emotion_name}<br>"
                     f"Reactions: {submission_count}<br>"
                     f"Participants: {participant_count}<br>"
@@ -162,21 +164,27 @@ def create_colored_segment_wheel(reactions_df):
                 )
             ))
 
-        # Add slide number labels in the center of each ring
-        if slide_num not in labeled_slides:
-            fig.add_trace(go.Scatterpolar(
-                r=[slide_num],
-                theta=[0],  # Position at 0 degrees
-                mode='text',
-                text=[str(slide_num)],
-                textfont=dict(size=10, color='black', family='Arial Black'),
-                showlegend=False,
-                hoverinfo='none'
-            ))
-            labeled_slides.add(slide_num)
-
     return fig
 
+def clean_text_for_json(text):
+    """Clean text to prevent JSON parsing issues"""
+    if pd.isna(text) or text is None:
+        return "Unknown"
+    text = str(text)
+    # Remove or escape problematic characters
+    text = text.replace('"', "'")
+    text = text.replace('\n', ' ')
+    text = text.replace('\r', ' ')
+    text = text.replace('\t', ' ')
+    text = text.replace('\\', '/')
+    # Remove control characters
+    text = ''.join(char for char in text if ord(char) >= 32 or char in '\n\r\t')
+    text = text.replace('{', '(').replace('}', ')')
+
+    # empty string causing chart to break, so replace it with a space
+    if text == '':
+        text = ' '
+    return text[:100]  # Limit length to prevent huge strings
 
 def create_emotional_wheel(all_reactions_df):
     fig = create_colored_segment_wheel(all_reactions_df)
@@ -189,7 +197,7 @@ def create_emotional_wheel(all_reactions_df):
         polar=dict(
             bgcolor='rgba(250,250,250,0.8)',
             radialaxis=dict(
-                visible=True,
+                visible=False,
                 range=[0, max_slide + 1],
                 tickmode='linear',
                 tick0=1,
@@ -217,6 +225,8 @@ def create_emotional_wheel(all_reactions_df):
     # Display the chart
     st.plotly_chart(fig, use_container_width=True)
 
+
+def create_reaction_detailed_analysis(all_reactions_df):
     # ===== DETAILED ANALYSIS =====
     st.markdown("---")
     st.subheader("📊 Detailed Reaction Analysis")
