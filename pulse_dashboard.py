@@ -4,11 +4,8 @@ import altair as alt
 import pandas as pd
 import numpy as np
 
-# Your existing data processing code
-df = get_interactions_of_presentation(7453082)
 
-
-def enrich_reaction_data(df):
+def enrich_interaction_data(df):
     unique_audience_data = df.copy()
     presentation_audience_count = unique_audience_data['audienceid'].nunique()
 
@@ -73,9 +70,14 @@ def create_pulse_chart(minimal_pulse_df):
 
     st.altair_chart(minimal_chart, use_container_width=True)
 
-reaction_df = enrich_reaction_data(df)
-minimal_pulse_df = create_minimal_pulse(reaction_df, 'Percent of engaged audience')
-create_pulse_chart(minimal_pulse_df)
+
+if __name__ == "__main__":
+    # Your existing data processing code
+    df = get_interactions_of_presentation(7453082)
+
+    reaction_df = enrich_interaction_data(df)
+    minimal_pulse_df = create_minimal_pulse(reaction_df, 'Percent of engaged audience')
+    create_pulse_chart(minimal_pulse_df)
 
 
 

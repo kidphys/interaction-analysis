@@ -5,23 +5,6 @@ import pandas as pd
 import plotly.graph_objects as go
 import numpy as np
 
-params = st.query_params
-user_id = params.get('user_id', 1918789)
-presentation_df = get_presentations_of_user(user_id)
-
-presentations = presentation_df.to_dict(orient='records')
-
-default_idx = 1
-selected_presentation = st.selectbox('Select presentation:', list(presentations), format_func=lambda x: x['name'], index=default_idx)
-st.session_state.selected_presentation = selected_presentation
-
-if st.session_state.selected_presentation:
-    presentation_id = st.session_state.selected_presentation['id']
-else:
-    presentation_id = 7021758
-
-presentation_id = 4405400
-
 # Load the actual data
 @st.cache_data
 def load_reaction_data(presentation_id):
@@ -46,13 +29,6 @@ def load_reaction_data(presentation_id):
 
     return df
 
-# Load data
-df = load_reaction_data(presentation_id)
-st.title("🎭 Emotion Wheel - Colored Segments")
-st.write("Each ring represents a slide, each colored segment shows reaction intensity")
-
-# Show basic data info
-st.write(f"**Total reactions:** {len(df)} | **Unique slides:** {df['Slide Order'].nunique()} | **Participants:** {df['Participant Id'].nunique()}")
 
 # ===== REACTION MAPPING (Option 2: Psychological Valence Model) =====
 
@@ -108,18 +84,6 @@ def get_all_slide_reactions(df, emotion_map):
 
     return pd.DataFrame(slide_reactions)
 
-# Process all reactions
-all_reactions_df = get_all_slide_reactions(df, emotion_map)
-
-# Display processed data
-if len(all_reactions_df) > 0:
-    st.write("### 📊 All Reactions per Slide")
-    display_df = all_reactions_df[['slide_order', 'slide_title', 'reaction_type', 'emotion_emoji', 'submission_count', 'participant_count']].copy()
-    display_df.columns = ['Slide', 'Title', 'Reaction Type', 'Emoji', 'Submissions', 'Participants']
-    st.dataframe(display_df, width='stretch')
-else:
-    st.warning("No reaction data found for this presentation.")
-    st.stop()
 
 # ===== CREATE COLORED SEGMENT EMOTION WHEEL =====
 
@@ -296,26 +260,64 @@ def create_emotional_wheel(all_reactions_df):
         st.success("✅ Colored segment reaction data exported!")
 
 
-# Create the chart
-if len(all_reactions_df) > 0:
-    create_emotional_wheel(all_reactions_df)
-else:
-    st.error("No data to display.")
+if __name__ == "__main__":
+    params = st.query_params
+    user_id = params.get('user_id', 1918789)
+    presentation_df = get_presentations_of_user(user_id)
 
-st.markdown("""
----
-### 📖 How to Read This Colored Segment Emotion Wheel:
+    presentations = presentation_df.to_dict(orient='records')
 
-- **Each concentric ring** = One slide (inner rings = early slides)
-- **Each colored segment** = One emotion type (❤️ Heart, 👍 Like, etc.)
-- **Color intensity/opacity** = Number of reactions (darker = more reactions)
-- **Angular position** = Emotion type (consistent across all slides)
-- **White lines** = Segment boundaries for clear separation
+    default_idx = 1
+    selected_presentation = st.selectbox('Select presentation:', list(presentations), format_func=lambda x: x['name'], index=default_idx)
+    st.session_state.selected_presentation = selected_presentation
 
-**Example**: In slide 3's ring, if you see:
-- Bright pink segment at top = Many heart reactions
-- Light green segment at right = Few like reactions
-- Dark gold segment = Many laugh reactions
+    if st.session_state.selected_presentation:
+        presentation_id = st.session_state.selected_presentation['id']
+    else:
+        presentation_id = 7021758
 
-This gives you a **complete emotional landscape** for each slide! 🎭
-""")
+    presentation_id = 4405400
+
+    # Load data
+    df = load_reaction_data(presentation_id)
+    st.title("🎭 Emotion Wheel - Colored Segments")
+    st.write("Each ring represents a slide, each colored segment shows reaction intensity")
+
+    # Show basic data info
+    st.write(f"**Total reactions:** {len(df)} | **Unique slides:** {df['Slide Order'].nunique()} | **Participants:** {df['Participant Id'].nunique()}")
+    # Process all reactions
+    all_reactions_df = get_all_slide_reactions(df, emotion_map)
+
+    # Display processed data
+    if len(all_reactions_df) > 0:
+        st.write("### 📊 All Reactions per Slide")
+        display_df = all_reactions_df[['slide_order', 'slide_title', 'reaction_type', 'emotion_emoji', 'submission_count', 'participant_count']].copy()
+        display_df.columns = ['Slide', 'Title', 'Reaction Type', 'Emoji', 'Submissions', 'Participants']
+        st.dataframe(display_df, width='stretch')
+    else:
+        st.warning("No reaction data found for this presentation.")
+        st.stop()
+
+    #Create the chart
+    if len(all_reactions_df) > 0:
+        create_emotional_wheel(all_reactions_df)
+    else:
+        st.error("No data to display.")
+
+    st.markdown("""
+    ---
+    ### 📖 How to Read This Colored Segment Emotion Wheel:
+
+    - **Each concentric ring** = One slide (inner rings = early slides)
+    - **Each colored segment** = One emotion type (❤️ Heart, 👍 Like, etc.)
+    - **Color intensity/opacity** = Number of reactions (darker = more reactions)
+    - **Angular position** = Emotion type (consistent across all slides)
+    - **White lines** = Segment boundaries for clear separation
+
+    **Example**: In slide 3's ring, if you see:
+    - Bright pink segment at top = Many heart reactions
+    - Light green segment at right = Few like reactions
+    - Dark gold segment = Many laugh reactions
+
+    This gives you a **complete emotional landscape** for each slide! 🎭
+    """)
