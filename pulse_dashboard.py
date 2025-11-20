@@ -55,7 +55,7 @@ def create_minimal_pulse(data, y_column):
 def create_pulse_chart(minimal_pulse_df):
     minimal_chart = alt.Chart(minimal_pulse_df).mark_line(
         size=3,
-        color='#DAA520',
+        color='#FF4081',
         strokeCap='round',
         interpolate='linear'
     ).encode(
