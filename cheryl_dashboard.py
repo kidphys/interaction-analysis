@@ -1,4 +1,4 @@
-from emotional_wheel_dashboard import create_emotional_wheel, get_all_slide_reactions, load_reaction_data
+from emotional_wheel_dashboard import create_emotional_wheel, create_emotional_wheel_autoplay, get_all_slide_reactions, load_reaction_data
 from emotional_wheel_dashboard import emotion_map
 from pulse_dashboard import create_minimal_pulse, create_pulse_chart, enrich_interaction_data
 import streamlit as st
@@ -38,8 +38,11 @@ if __name__ == "__main__":
     else:
         presentation_id = 7021758
 
+    presentation_id = 6801653
+
     df = get_all_answers_full(presentation_id)
     df = make_legacy_compatible(df)
+
 
     if len(df) > 0:
         reaction_df = enrich_interaction_data(df)

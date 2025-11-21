@@ -34,11 +34,10 @@ def load_reaction_data(presentation_id):
 
 emotion_map = {
     'heart': {'name': 'Love/Connection', 'color': '#FF1493', 'angle': 0, 'emoji': '❤️'},
-    'like': {'name': 'Positive/Approval', 'color': '#32CD32', 'angle': 60, 'emoji': '👍'},
-    'laugh': {'name': 'Joy/Amusement', 'color': '#FFD700', 'angle': 120, 'emoji': '😆'},
-    'wow': {'name': 'Awe/Surprise', 'color': '#FF8C00', 'angle': 180, 'emoji': '😮'},
-    'sad': {'name': 'Reflection/Sadness', 'color': '#4169E1', 'angle': 240, 'emoji': '😢'},
-    'question': {'name': 'Curiosity/Thinking', 'color': '#9370DB', 'angle': 300, 'emoji': '🧐'}
+    'like': {'name': 'Positive/Approval', 'color': '#32CD32', 'angle': 72, 'emoji': '👍'},
+    'laugh': {'name': 'Joy/Amusement', 'color': '#FFD700', 'angle': 144, 'emoji': '😆'},
+    'wow': {'name': 'Awe/Surprise', 'color': '#FF8C00', 'angle': 218, 'emoji': '😮'},
+    'sad': {'name': 'Reflection/Sadness', 'color': '#4169E1', 'angle': 288, 'emoji': '😢'},
 }
 
 # ===== PROCESS ALL REACTIONS PER SLIDE =====
@@ -92,12 +91,12 @@ def create_colored_segment_wheel(reactions_df):
     fig = go.Figure()
 
     # Define emotion types and their angular positions
-    emotions = ['heart', 'like', 'laugh', 'wow', 'sad', 'question']
+    emotions = ['heart', 'like', 'laugh', 'wow', 'sad']
     emotion_angles = {
-        'heart': 0, 'like': 60, 'laugh': 120,
-        'wow': 180, 'sad': 240, 'question': 300
+        'heart': 0, 'like': 72, 'laugh': 144,
+        'wow': 216, 'sad': 288
     }
-    angular_width = 60  # degrees per emotion segment
+    angular_width = 72  # degrees per emotion segment
 
     # Get all slide numbers to determine ring structure
     slide_numbers = sorted(reactions_df['slide_order'].unique())
@@ -225,6 +224,81 @@ def create_emotional_wheel(all_reactions_df):
     # Display the chart
     st.plotly_chart(fig, use_container_width=True)
 
+import time
+
+
+def create_emotional_wheel_autoplay(all_reactions_df):
+    st.subheader("🎭 Building Emotion Wheel...")
+
+    # Create placeholder for the chart
+    chart_placeholder = st.empty()
+    progress_bar = st.progress(0)
+    emotions = ['heart', 'like', 'laugh', 'wow', 'sad', 'question']
+    emotion_angles = {
+        'heart': 0, 'like': 72, 'laugh': 144,
+        'wow': 216, 'sad': 288
+    }
+    angular_width = 72 # degrees per emotion segment
+
+    slides = sorted(all_reactions_df['slide_order'].unique())
+
+    # Build the chart progressively with live updates
+    for frame_idx, current_slide in enumerate(slides):
+        # Update progress
+        progress = (frame_idx + 1) / len(slides)
+        progress_bar.progress(progress)
+
+        # Create figure with slides up to current
+        fig = go.Figure()
+
+        visible_slides = slides[:frame_idx + 1]
+
+        for slide_num in visible_slides:
+            slide_data = all_reactions_df[all_reactions_df['slide_order'] == slide_num]
+            for _, row in slide_data.iterrows():
+                reaction_type = row['reaction_type']
+                emotion_angle = emotion_angles[reaction_type]
+                if row['submission_count'] > 0:
+                    fig.add_trace(go.Barpolar(
+                        r=[1],
+                        theta=[emotion_angle],
+                        width=angular_width,
+                        base=slide_num - 0.5,
+                        marker=dict(
+                            color=row['emotion_color'],
+                            opacity=0.3 + (row['submission_count'] / all_reactions_df['submission_count'].max()) * 0.7,
+                            line=dict(color='white', width=1)
+                        ),
+                        showlegend=False,
+                        hovertemplate=(
+                            f"<b>Slide #{slide_num}</b><br>"
+                            f"Emotion: {row['emotion_emoji']} {row['emotion_name']}<br>"
+                            f"Reactions: {row['submission_count']}<br>"
+                            f"<extra></extra>"
+                        )
+                    ))
+
+        # Update layout
+        fig.update_layout(
+            title=f"🎭 Emotion Wheel - Through Slide {current_slide} of {len(slides)}",
+            polar=dict(
+                radialaxis=dict(visible=True, range=[0, len(slides) + 1], showticklabels=False),
+                angularaxis=dict(visible=True, direction='clockwise')
+            ),
+            width=700,
+            height=700
+        )
+
+        # Update the chart
+        chart_placeholder.plotly_chart(fig, use_container_width=True, key=f"emotion_wheel_{frame_idx}")
+
+        # # Pause between frames for animation effect
+        # if frame_idx < len(slides) - 1:  # Don't sleep after the last frame
+        #     time.sleep(0.01)  # 1 second between slides
+
+    # Clear progress bar when done
+    progress_bar.empty()
+    st.success("✨ Emotion wheel complete!")
 
 def create_reaction_detailed_analysis(all_reactions_df):
     # ===== DETAILED ANALYSIS =====
