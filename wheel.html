@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emotion Ring Wheel Component</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+        emotion-ring-wheel {
+            display: block;
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .component-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .component-header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 300;
+        }
+
+
+
+        .progress-container {
+            margin: 20px;
+            background-color: #e0e0e0;
+            border-radius: 10px;
+            height: 8px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            border-radius: 10px;
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+
+        .chart-container {
+            padding: 20px;
+            min-height: 600px;
+        }
+
+        .status {
+            text-align: center;
+            margin: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            font-weight: 500;
+        }
+
+        .status.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .data-info {
+            margin: 20px;
+            padding: 15px;
+            background-color: #e7f3ff;
+            border-radius: 8px;
+            border-left: 4px solid #007bff;
+        }
+    </style>
+</head>
+
+<body>
+    <emotion-ring-wheel></emotion-ring-wheel>
+
+    <script>
+        class EmotionRingWheel extends HTMLElement {
+            constructor() {
+                super();
+                this.data = null;
+                this.isAnimating = false;
+                this.animationSpeed = 200; // milliseconds - slowed down from 400
+                this.currentSlide = 0;
+                this.animationFrameId = null;
+            }
+
+            connectedCallback() {
+                this.innerHTML = `
+                    <div class="component-header">
+                        <h1>🎭 Emotion Ring Wheel</h1>
+                    </div>
+
+                    <div class="progress-container">
+                        <div class="progress-bar" id="progressBar"></div>
+                    </div>
+                    <div class="chart-container">
+                        <div id="chart" style="width: 100%; height: 600px;"></div>
+                    </div>
+                    <div id="status"></div>
+                    <div class="data-info" id="dataInfo" style="display: none;"></div>
+                `;
+
+                this.loadSampleData();
+                this.startAutomaticAnimation();
+            }
+
+            startAutomaticAnimation() {
+                // Wait a bit for the component to fully render, then start animation
+                setTimeout(() => {
+                    this.startAnimation();
+                }, 500);
+            }
+
+            // Sample data structure matching your CSV
+            loadSampleData() {
+                // This would be loaded from your CSV file
+                this.data = [
+                    // Slide 1
+                    { slide_order: 1, emotion_name: 'Love/Connection', emotion_emoji: '❤️', emotion_angle: 0, emotion_color: '#ff6b6b', submission_count: 5, participant_count: 3 },
+                    { slide_order: 1, emotion_name: 'Positive/Approval', emotion_emoji: '👍', emotion_angle: 72, emotion_color: '#4ecdc4', submission_count: 8, participant_count: 4 },
+                    { slide_order: 1, emotion_name: 'Joy/Amusement', emotion_emoji: '😆', emotion_angle: 144, emotion_color: '#45b7d1', submission_count: 12, participant_count: 6 },
+                    { slide_order: 1, emotion_name: 'Awe/Surprise', emotion_emoji: '😮', emotion_angle: 216, emotion_color: '#f9ca24', submission_count: 3, participant_count: 2 },
+                    { slide_order: 1, emotion_name: 'Sad/Reflection', emotion_emoji: '😢', emotion_angle: 288, emotion_color: '#a55eea', submission_count: 2, participant_count: 1 },
+
+                    // Slide 2
+                    { slide_order: 2, emotion_name: 'Love/Connection', emotion_emoji: '❤️', emotion_angle: 0, emotion_color: '#ff6b6b', submission_count: 7, participant_count: 4 },
+                    { slide_order: 2, emotion_name: 'Positive/Approval', emotion_emoji: '👍', emotion_angle: 72, emotion_color: '#4ecdc4', submission_count: 15, participant_count: 8 },
+                    { slide_order: 2, emotion_name: 'Joy/Amusement', emotion_emoji: '😆', emotion_angle: 144, emotion_color: '#45b7d1', submission_count: 18, participant_count: 9 },
+                    { slide_order: 2, emotion_name: 'Awe/Surprise', emotion_emoji: '😮', emotion_angle: 216, emotion_color: '#f9ca24', submission_count: 6, participant_count: 3 },
+                    { slide_order: 2, emotion_name: 'Sad/Reflection', emotion_emoji: '😢', emotion_angle: 288, emotion_color: '#a55eea', submission_count: 1, participant_count: 1 },
+
+                    // Add more slides as needed...
+                    // Slide 3
+                    { slide_order: 3, emotion_name: 'Love/Connection', emotion_emoji: '❤️', emotion_angle: 0, emotion_color: '#ff6b6b', submission_count: 10, participant_count: 5 },
+                    { slide_order: 3, emotion_name: 'Positive/Approval', emotion_emoji: '👍', emotion_angle: 72, emotion_color: '#4ecdc4', submission_count: 20, participant_count: 10 },
+                    { slide_order: 3, emotion_name: 'Joy/Amusement', emotion_emoji: '😆', emotion_angle: 144, emotion_color: '#45b7d1', submission_count: 25, participant_count: 12 },
+                    { slide_order: 3, emotion_name: 'Awe/Surprise', emotion_emoji: '😮', emotion_angle: 216, emotion_color: '#f9ca24', submission_count: 8, participant_count: 4 },
+                    { slide_order: 3, emotion_name: 'Sad/Reflection', emotion_emoji: '😢', emotion_angle: 288, emotion_color: '#a55eea', submission_count: 3, participant_count: 2 },
+
+                    // Slide 4
+                    { slide_order: 4, emotion_name: 'Love/Connection', emotion_emoji: '❤️', emotion_angle: 0, emotion_color: '#ff6b6b', submission_count: 12, participant_count: 6 },
+                    { slide_order: 4, emotion_name: 'Positive/Approval', emotion_emoji: '👍', emotion_angle: 72, emotion_color: '#4ecdc4', submission_count: 22, participant_count: 11 },
+                    { slide_order: 4, emotion_name: 'Joy/Amusement', emotion_emoji: '😆', emotion_angle: 144, emotion_color: '#45b7d1', submission_count: 30, participant_count: 15 },
+                    { slide_order: 4, emotion_name: 'Awe/Surprise', emotion_emoji: '😮', emotion_angle: 216, emotion_color: '#f9ca24', submission_count: 14, participant_count: 7 },
+                    { slide_order: 4, emotion_name: 'Sad/Reflection', emotion_emoji: '😢', emotion_angle: 288, emotion_color: '#a55eea', submission_count: 5, participant_count: 3 },
+
+                    // Slide 5
+                    { slide_order: 5, emotion_name: 'Love/Connection', emotion_emoji: '❤️', emotion_angle: 0, emotion_color: '#ff6b6b', submission_count: 16, participant_count: 8 },
+                    { slide_order: 5, emotion_name: 'Positive/Approval', emotion_emoji: '👍', emotion_angle: 72, emotion_color: '#4ecdc4', submission_count: 28, participant_count: 14 },
+                    { slide_order: 5, emotion_name: 'Joy/Amusement', emotion_emoji: '😆', emotion_angle: 144, emotion_color: '#45b7d1', submission_count: 35, participant_count: 17 },
+                    { slide_order: 5, emotion_name: 'Awe/Surprise', emotion_emoji: '😮', emotion_angle: 216, emotion_color: '#f9ca24', submission_count: 18, participant_count: 9 },
+                    { slide_order: 5, emotion_name: 'Sad/Reflection', emotion_emoji: '😢', emotion_angle: 288, emotion_color: '#a55eea', submission_count: 7, participant_count: 4 },
+
+                    // Slide 6
+                    { slide_order: 6, emotion_name: 'Love/Connection', emotion_emoji: '❤️', emotion_angle: 0, emotion_color: '#ff6b6b', submission_count: 20, participant_count: 10 },
+                    { slide_order: 6, emotion_name: 'Positive/Approval', emotion_emoji: '👍', emotion_angle: 72, emotion_color: '#4ecdc4', submission_count: 32, participant_count: 16 },
+                    { slide_order: 6, emotion_name: 'Joy/Amusement', emotion_emoji: '😆', emotion_angle: 144, emotion_color: '#45b7d1', submission_count: 38, participant_count: 19 },
+                    { slide_order: 6, emotion_name: 'Awe/Surprise', emotion_emoji: '😮', emotion_angle: 216, emotion_color: '#f9ca24', submission_count: 22, participant_count: 11 },
+                    { slide_order: 6, emotion_name: 'Sad/Reflection', emotion_emoji: '😢', emotion_angle: 288, emotion_color: '#a55eea', submission_count: 9, participant_count: 5 },
+
+                    // Slide 7
+                    { slide_order: 7, emotion_name: 'Love/Connection', emotion_emoji: '❤️', emotion_angle: 0, emotion_color: '#ff6b6b', submission_count: 18, participant_count: 9 },
+                    { slide_order: 7, emotion_name: 'Positive/Approval', emotion_emoji: '👍', emotion_angle: 72, emotion_color: '#4ecdc4', submission_count: 30, participant_count: 15 },
+                    { slide_order: 7, emotion_name: 'Joy/Amusement', emotion_emoji: '😆', emotion_angle: 144, emotion_color: '#45b7d1', submission_count: 40, participant_count: 20 },
+                    { slide_order: 7, emotion_name: 'Awe/Surprise', emotion_emoji: '😮', emotion_angle: 216, emotion_color: '#f9ca24', submission_count: 25, participant_count: 12 },
+                    { slide_order: 7, emotion_name: 'Sad/Reflection', emotion_emoji: '😢', emotion_angle: 288, emotion_color: '#a55eea', submission_count: 11, participant_count: 6 },
+
+                    // Slide 8
+                    { slide_order: 8, emotion_name: 'Love/Connection', emotion_emoji: '❤️', emotion_angle: 0, emotion_color: '#ff6b6b', submission_count: 24, participant_count: 12 },
+                    { slide_order: 8, emotion_name: 'Positive/Approval', emotion_emoji: '👍', emotion_angle: 72, emotion_color: '#4ecdc4', submission_count: 35, participant_count: 17 },
+                    { slide_order: 8, emotion_name: 'Joy/Amusement', emotion_emoji: '😆', emotion_angle: 144, emotion_color: '#45b7d1', submission_count: 42, participant_count: 21 },
+                    { slide_order: 8, emotion_name: 'Awe/Surprise', emotion_emoji: '😮', emotion_angle: 216, emotion_color: '#f9ca24', submission_count: 28, participant_count: 14 },
+                    { slide_order: 8, emotion_name: 'Sad/Reflection', emotion_emoji: '😢', emotion_angle: 288, emotion_color: '#a55eea', submission_count: 13, participant_count: 7 },
+
+                    // Slide 9
+                    { slide_order: 9, emotion_name: 'Love/Connection', emotion_emoji: '❤️', emotion_angle: 0, emotion_color: '#ff6b6b', submission_count: 22, participant_count: 11 },
+                    { slide_order: 9, emotion_name: 'Positive/Approval', emotion_emoji: '👍', emotion_angle: 72, emotion_color: '#4ecdc4', submission_count: 38, participant_count: 19 },
+                    { slide_order: 9, emotion_name: 'Joy/Amusement', emotion_emoji: '😆', emotion_angle: 144, emotion_color: '#45b7d1', submission_count: 45, participant_count: 22 },
+                    { slide_order: 9, emotion_name: 'Awe/Surprise', emotion_emoji: '😮', emotion_angle: 216, emotion_color: '#f9ca24', submission_count: 30, participant_count: 15 },
+                    { slide_order: 9, emotion_name: 'Sad/Reflection', emotion_emoji: '😢', emotion_angle: 288, emotion_color: '#a55eea', submission_count: 8, participant_count: 4 },
+
+                    // Slide 10
+                    { slide_order: 10, emotion_name: 'Love/Connection', emotion_emoji: '❤️', emotion_angle: 0, emotion_color: '#ff6b6b', submission_count: 26, participant_count: 13 },
+                    { slide_order: 10, emotion_name: 'Positive/Approval', emotion_emoji: '👍', emotion_angle: 72, emotion_color: '#4ecdc4', submission_count: 40, participant_count: 20 },
+                    { slide_order: 10, emotion_name: 'Joy/Amusement', emotion_emoji: '😆', emotion_angle: 144, emotion_color: '#45b7d1', submission_count: 48, participant_count: 24 },
+                    { slide_order: 10, emotion_name: 'Awe/Surprise', emotion_emoji: '😮', emotion_angle: 216, emotion_color: '#f9ca24', submission_count: 32, participant_count: 16 },
+                    { slide_order: 10, emotion_name: 'Sad/Reflection', emotion_emoji: '😢', emotion_angle: 288, emotion_color: '#a55eea', submission_count: 6, participant_count: 3 },
+
+                    // Slide 11
+                    { slide_order: 11, emotion_name: 'Love/Connection', emotion_emoji: '❤️', emotion_angle: 0, emotion_color: '#ff6b6b', submission_count: 28, participant_count: 14 },
+                    { slide_order: 11, emotion_name: 'Positive/Approval', emotion_emoji: '👍', emotion_angle: 72, emotion_color: '#4ecdc4', submission_count: 42, participant_count: 21 },
+                    { slide_order: 11, emotion_name: 'Joy/Amusement', emotion_emoji: '😆', emotion_angle: 144, emotion_color: '#45b7d1', submission_count: 50, participant_count: 25 },
+                    { slide_order: 11, emotion_name: 'Awe/Surprise', emotion_emoji: '😮', emotion_angle: 216, emotion_color: '#f9ca24', submission_count: 35, participant_count: 17 },
+                    { slide_order: 11, emotion_name: 'Sad/Reflection', emotion_emoji: '😢', emotion_angle: 288, emotion_color: '#a55eea', submission_count: 10, participant_count: 5 },
+
+                    // Slide 12
+                    { slide_order: 12, emotion_name: 'Love/Connection', emotion_emoji: '❤️', emotion_angle: 0, emotion_color: '#ff6b6b', submission_count: 30, participant_count: 15 },
+                    { slide_order: 12, emotion_name: 'Positive/Approval', emotion_emoji: '👍', emotion_angle: 72, emotion_color: '#4ecdc4', submission_count: 45, participant_count: 22 },
+                    { slide_order: 12, emotion_name: 'Joy/Amusement', emotion_emoji: '😆', emotion_angle: 144, emotion_color: '#45b7d1', submission_count: 52, participant_count: 26 },
+                    { slide_order: 12, emotion_name: 'Awe/Surprise', emotion_emoji: '😮', emotion_angle: 216, emotion_color: '#f9ca24', submission_count: 38, participant_count: 19 },
+                    { slide_order: 12, emotion_name: 'Sad/Reflection', emotion_emoji: '😢', emotion_angle: 288, emotion_color: '#a55eea', submission_count: 12, participant_count: 6 },
+
+                    // Slide 13
+                    { slide_order: 13, emotion_name: 'Love/Connection', emotion_emoji: '❤️', emotion_angle: 0, emotion_color: '#ff6b6b', submission_count: 25, participant_count: 12 },
+                    { slide_order: 13, emotion_name: 'Positive/Approval', emotion_emoji: '👍', emotion_angle: 72, emotion_color: '#4ecdc4', submission_count: 48, participant_count: 24 },
+                    { slide_order: 13, emotion_name: 'Joy/Amusement', emotion_emoji: '😆', emotion_angle: 144, emotion_color: '#45b7d1', submission_count: 55, participant_count: 27 },
+                    { slide_order: 13, emotion_name: 'Awe/Surprise', emotion_emoji: '😮', emotion_angle: 216, emotion_color: '#f9ca24', submission_count: 40, participant_count: 20 },
+                    { slide_order: 13, emotion_name: 'Sad/Reflection', emotion_emoji: '😢', emotion_angle: 288, emotion_color: '#a55eea', submission_count: 14, participant_count: 7 }
+                ];
+
+                this.showDataInfo();
+                this.renderInitialChart();
+            }
+
+            // Method to load data from CSV file
+            async loadDataFromCSV(csvPath) {
+                try {
+                    const response = await fetch(csvPath);
+                    const csvText = await response.text();
+                    this.data = this.parseCSV(csvText);
+                    this.showDataInfo();
+                    this.renderInitialChart();
+                    this.startAutomaticAnimation();
+                } catch (error) {
+                    this.showStatus('Error loading CSV file: ' + error.message, 'error');
+                }
+            }
+
+            parseCSV(csvText) {
+                const lines = csvText.split('\n');
+                const headers = lines[0].split(',').map(h => h.trim());
+                const data = [];
+
+                for (let i = 1; i < lines.length; i++) {
+                    if (lines[i].trim() === '') continue;
+
+                    const values = lines[i].split(',').map(v => v.trim());
+                    const row = {};
+
+                    headers.forEach((header, index) => {
+                        if (header === 'slide_order' || header === 'submission_count' ||
+                            header === 'participant_count' || header === 'emotion_angle') {
+                            row[header] = parseInt(values[index]) || 0;
+                        } else {
+                            row[header] = values[index] || '';
+                        }
+                    });
+
+                    // Skip rows with missing critical data
+                    if (row.slide_order && row.emotion_name && row.submission_count !== undefined) {
+                        data.push(row);
+                    }
+                }
+
+                return data;
+            }
+
+            showDataInfo() {
+                if (!this.data || this.data.length === 0) return;
+
+                const slides = [...new Set(this.data.map(d => d.slide_order))].sort((a, b) => a - b);
+                const emotions = [...new Set(this.data.map(d => d.emotion_name))];
+                const totalReactions = this.data.reduce((sum, d) => sum + d.submission_count, 0);
+
+                const infoDiv = this.querySelector('#dataInfo');
+                infoDiv.style.display = 'block';
+                infoDiv.innerHTML = `
+                    <strong>Data Overview:</strong><br>
+                    📊 Slides: ${slides.length} (${slides[0]} - ${slides[slides.length - 1]})<br>
+                    🎭 Emotions: ${emotions.length}<br>
+                    👥 Total Reactions: ${totalReactions}
+                `;
+            }
+
+            renderInitialChart() {
+                if (!this.data || this.data.length === 0) {
+                    this.showStatus('No data available to display', 'error');
+                    return;
+                }
+
+                // Render empty chart initially
+                this.renderChart([]);
+            }
+
+            startAnimation() {
+                if (!this.data || this.data.length === 0) return;
+
+                this.isAnimating = true;
+
+                const slides = [...new Set(this.data.map(d => d.slide_order))].sort((a, b) => a - b);
+
+                if (this.currentSlide >= slides.length) {
+                    this.currentSlide = 0;
+                }
+
+                this.animateNextSlide(slides);
+            }
+
+            animateNextSlide(slides) {
+                if (!this.isAnimating || this.currentSlide >= slides.length) {
+                    if (this.currentSlide >= slides.length) {
+                        this.completeAnimation();
+                    }
+                    return;
+                }
+
+                // Get data up to current slide
+                const currentSlideNum = slides[this.currentSlide];
+                const visibleSlides = slides.slice(0, this.currentSlide + 1);
+                const visibleData = this.data.filter(d => visibleSlides.includes(d.slide_order));
+
+                this.renderChart(visibleData);
+                this.updateProgress(this.currentSlide + 1, slides.length);
+
+                this.currentSlide++;
+
+                // Schedule next slide
+                this.animationFrameId = setTimeout(() => {
+                    this.animateNextSlide(slides);
+                }, this.animationSpeed); // Use consistent speed instead of dynamic speed
+            }
+
+            pauseAnimation() {
+                this.isAnimating = false;
+                if (this.animationFrameId) {
+                    clearTimeout(this.animationFrameId);
+                    this.animationFrameId = null;
+                }
+            }
+
+            resetAnimation() {
+                this.pauseAnimation();
+                this.currentSlide = 0;
+                this.updateProgress(0, 1);
+                this.renderChart([]);
+                this.clearStatus();
+            }
+
+            renderChart(dataToShow) {
+                if (dataToShow.length === 0) {
+                    // Show empty chart with layout
+                    const fig = {
+                        data: [],
+                        layout: this.getChartLayout([])
+                    };
+                    Plotly.newPlot('chart', fig.data, fig.layout, { responsive: true });
+                    return;
+                }
+
+                const slides = [...new Set(dataToShow.map(d => d.slide_order))].sort((a, b) => a - b);
+                const maxCount = Math.max(...dataToShow.map(d => d.submission_count));
+                const traces = [];
+
+                slides.forEach(slideNum => {
+                    const slideData = dataToShow.filter(d => d.slide_order === slideNum);
+
+                    slideData.forEach(row => {
+                        if (row.submission_count > 0) {
+                            const intensity = 0.3 + (row.submission_count / maxCount) * 0.7;
+                            const angularWidth = 72;
+
+                            traces.push({
+                                type: 'barpolar',
+                                r: [1],
+                                theta: [row.emotion_angle],
+                                width: [angularWidth],
+                                base: [slideNum - 0.5],
+                                marker: {
+                                    color: row.emotion_color,
+                                    opacity: intensity,
+                                    line: { color: 'white', width: 1 }
+                                },
+                                showlegend: false,
+                                hovertemplate:
+                                    `<b>Slide ${slideNum}</b><br>` +
+                                    `Emotion: ${row.emotion_emoji} ${row.emotion_name}<br>` +
+                                    `Reactions: ${row.submission_count}<br>` +
+                                    `Participants: ${row.participant_count}<br>` +
+                                    '<extra></extra>'
+                            });
+                        }
+                    });
+                });
+
+                const layout = this.getChartLayout(slides);
+
+                Plotly.newPlot('chart', traces, layout, { responsive: true });
+            }
+
+            getChartLayout(slides) {
+                const maxSlides = Math.max(5, slides.length); // Ensure minimum range
+                const angularWidth = 72;
+
+                return {
+                    title: {
+                        text: '🎭 Emotion Rings - Progressive Animation',
+                        font: { size: 20, color: '#333' }
+                    },
+                    polar: {
+                        radialaxis: {
+                            visible: true,
+                            range: [0, maxSlides + 1],
+                            showticklabels: true,
+                            gridcolor: 'lightgray',
+                            title: { text: 'Slides', font: { size: 12 } }
+                        },
+                        angularaxis: {
+                            visible: true,
+                            direction: 'clockwise',
+                            tickmode: 'array',
+                            tickvals: [0, 72, 144, 216, 288],
+                            ticktext: [
+                                '❤️ Love/Connection',
+                                '👍 Positive/Approval',
+                                '😆 Joy/Amusement',
+                                '😮 Awe/Surprise',
+                                '😢 Sad/Reflection'
+                            ],
+                            tickfont: { size: 11 }
+                        }
+                    },
+                    margin: { l: 120, r: 120, t: 120, b: 120, pad: 10 },
+                    width: 800,
+                    height: 600,
+                    paper_bgcolor: 'white',
+                    plot_bgcolor: 'white'
+                };
+            }
+
+            updateProgress(current, total) {
+                const percentage = (current / total) * 100;
+                this.querySelector('#progressBar').style.width = `${percentage}%`;
+            }
+
+            completeAnimation() {
+                this.isAnimating = false;
+                this.showStatus('✨ Ring building complete!', 'success');
+            }
+
+            showStatus(message, type = 'success') {
+                const statusDiv = this.querySelector('#status');
+                statusDiv.innerHTML = message;
+                statusDiv.className = `status ${type}`;
+                statusDiv.style.display = 'block';
+            }
+
+            clearStatus() {
+                const statusDiv = this.querySelector('#status');
+                statusDiv.style.display = 'none';
+            }
+
+            // Public methods for external use
+            loadData(data) {
+                this.data = data;
+                this.showDataInfo();
+                this.renderInitialChart();
+                this.startAutomaticAnimation();
+            }
+        }
+
+        // Register the custom element
+        customElements.define('emotion-ring-wheel', EmotionRingWheel);
+
+        // Example of how to use the component with external data
+        document.addEventListener('DOMContentLoaded', function () {
+            const wheel = document.querySelector('emotion-ring-wheel');
+
+            // Example: Load from external CSV file
+            // wheel.loadDataFromCSV('path/to/your/data.csv');
+
+            // Example: Load from external data
+            // wheel.loadData(yourDataArray);
+        });
+    </script>
+</body>
+
+</html>
