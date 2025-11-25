@@ -1,5 +1,6 @@
 from emotional_wheel_dashboard import create_emotional_wheel, create_emotional_wheel_autoplay, get_all_slide_reactions, load_reaction_data
 from emotional_wheel_dashboard import emotion_map
+from fast_wheel_dashboard import create_progressive_ring_wheel
 from pulse_dashboard import create_minimal_pulse, create_pulse_chart, enrich_interaction_data
 import streamlit as st
 from warehouse_repo import get_interactions_of_presentation, get_presentations_of_user
@@ -17,6 +18,13 @@ def make_legacy_compatible(answer_df):
     return answer_df
 
 if __name__ == "__main__":
+    # Add this to your Streamlit app
+    st.markdown("""
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Space+Mono&display=swap');
+    </style>
+    """, unsafe_allow_html=True)
 
     st.set_page_config(layout="wide")
     col1, col2 = st.columns([3, 1])
@@ -44,18 +52,20 @@ if __name__ == "__main__":
     df = make_legacy_compatible(df)
 
 
-    if len(df) > 0:
-        reaction_df = enrich_interaction_data(df)
-        minimal_pulse_df = create_minimal_pulse(reaction_df, 'Percent of engaged audience')
-        create_pulse_chart(minimal_pulse_df)
-    else:
-        st.error('No participant response to display.')
+    # if len(df) > 0:
+    #     reaction_df = enrich_interaction_data(df)
+    #     minimal_pulse_df = create_minimal_pulse(reaction_df, 'Percent of engaged audience')
+    #     create_pulse_chart(minimal_pulse_df)
+    # else:
+    #     st.error('No participant response to display.')
 
     df = load_reaction_data(presentation_id)
 
     all_reactions_df = get_all_slide_reactions(df, emotion_map)
 
-    if len(all_reactions_df) > 0:
-        fig = create_emotional_wheel(all_reactions_df)
-    else:
-        st.error("No reaction to display.")
+    with col1:
+        if len(all_reactions_df) > 0:
+            create_progressive_ring_wheel(all_reactions_df)
+            fig = create_emotional_wheel(all_reactions_df)
+        else:
+            st.error("No reaction to display.")

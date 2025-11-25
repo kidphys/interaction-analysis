@@ -33,11 +33,11 @@ def load_reaction_data(presentation_id):
 # ===== REACTION MAPPING (Option 2: Psychological Valence Model) =====
 
 emotion_map = {
-    'heart': {'name': 'Love/Connection', 'color': '#FF1493', 'angle': 0, 'emoji': '❤️'},
-    'like': {'name': 'Positive/Approval', 'color': '#32CD32', 'angle': 72, 'emoji': '👍'},
-    'laugh': {'name': 'Joy/Amusement', 'color': '#FFD700', 'angle': 144, 'emoji': '😆'},
-    'wow': {'name': 'Awe/Surprise', 'color': '#FF8C00', 'angle': 218, 'emoji': '😮'},
-    'sad': {'name': 'Reflection/Sadness', 'color': '#4169E1', 'angle': 288, 'emoji': '😢'},
+    'heart': {'name': 'Love/Connection', 'color': '#FF4081', 'angle': 0, 'emoji': '❤️'},
+    'like': {'name': 'Positive/Approval', 'color': '#20E8B5', 'angle': 72, 'emoji': '👍'},
+    'laugh': {'name': 'Joy/Amusement', 'color': '#FFE32C', 'angle': 144, 'emoji': '😆'},
+    'wow': {'name': 'Awe/Surprise', 'color': '#FF9068', 'angle': 218, 'emoji': '😮'},
+    'sad': {'name': 'Reflection/Sadness', 'color': '#6A1EBB', 'angle': 288, 'emoji': '😢'},
 }
 
 # ===== PROCESS ALL REACTIONS PER SLIDE =====
@@ -87,6 +87,7 @@ def get_all_slide_reactions(df, emotion_map):
 # ===== CREATE COLORED SEGMENT EMOTION WHEEL =====
 
 def create_colored_segment_wheel(reactions_df):
+    chart_placeholder = st.empty()
     """Create emotion wheel with colored segments like the reference image"""
     fig = go.Figure()
 
@@ -108,8 +109,33 @@ def create_colored_segment_wheel(reactions_df):
     # Track slide labels added
     labeled_slides = set()
 
+    fig.update_layout(
+        title=f"🎭 Emotion Rings",
+        polar=dict(
+            radialaxis=dict(
+                visible=True,
+                range=[0, max_slide + 2],
+                showticklabels=True,
+                gridcolor='lightgray'
+            ),
+            angularaxis=dict(
+                visible=True,
+                direction='clockwise',
+                tickmode='array',
+                tickvals=[config['angle'] for config in emotion_map.values()],
+                ticktext=[f"{config['emoji']} {config['name']}" for config in emotion_map.values()],
+            )
+        ),
+        width=800,
+        height=800,
+        font=dict(
+            family="Plus Jakarta Sans, Arial, sans-serif",
+            size=14,
+            color="#262730"
+        )
+    )
     # Process each slide as a concentric ring
-    for slide_num in slide_numbers:
+    for frame_idx, slide_num in enumerate(slide_numbers):
         slide_data = reactions_df[reactions_df['slide_order'] == slide_num]
 
         # Get slide information
@@ -163,6 +189,71 @@ def create_colored_segment_wheel(reactions_df):
                 )
             ))
 
+        # Update layout
+        # if frame_idx == 0:
+        #     fig.update_layout(
+        #         title=f"🎭 Emotion Rings",
+        #         polar=dict(
+        #             radialaxis=dict(
+        #                 visible=True,
+        #                 range=[0, max_slide + 2],
+        #                 showticklabels=True,
+        #                 gridcolor='lightgray'
+        #             ),
+        #             angularaxis=dict(
+        #                 visible=True,
+        #                 direction='clockwise',
+        #                 tickmode='array',
+        #                 tickvals=[config['angle'] for config in emotion_map.values()],
+        #                 ticktext=[f"{config['emoji']} {config['name']}" for config in emotion_map.values()],
+        #             )
+        #         ),
+        #         width=800,
+        #         height=800,
+        #         font=dict(
+        #             family="Plus Jakarta Sans, Arial, sans-serif",
+        #             size=14,
+        #             color="#262730"
+        #         )
+        #     )
+
+        # fig.update_layout(
+        #     title="Emotional Ring",
+        #     polar=dict(
+        #         bgcolor='rgba(250,250,250,0.8)',
+        #         radialaxis=dict(
+        #             visible=True,
+        #             range=[1, max_slide + 2],
+        #             tickmode='linear',
+        #             tick0=0,
+        #             dtick=10,
+        #             gridcolor='lightgray',
+        #             gridwidth=1
+        #         ),
+        #         angularaxis=dict(
+        #             visible=True,
+        #             tickmode='array',
+        #             tickvals=[config['angle'] for config in emotion_map.values()],
+        #             ticktext=[f"{config['emoji']} {config['name']}" for config in emotion_map.values()],
+        #             direction='clockwise',
+        #             rotation=0,
+        #             gridcolor='lightgray',
+        #             linecolor='darkgray'
+        #         )
+        #     ),
+        #     width=800,
+        #     height=800,
+        #     showlegend=False,
+        #     font=dict(
+        #         family="Plus Jakarta Sans, Arial, sans-serif",
+        #         size=14,
+        #         color="#262730"
+        #     )
+        # )
+                # Update chart
+        chart_placeholder.plotly_chart(fig, use_container_width=True, key=f"old_ring_{frame_idx}")
+        # delay = 0.5 / (frame_idx + 1)
+        time.sleep(0.1)
     return fig
 
 def clean_text_for_json(text):
@@ -188,41 +279,45 @@ def clean_text_for_json(text):
 def create_emotional_wheel(all_reactions_df):
     fig = create_colored_segment_wheel(all_reactions_df)
 
-    # Configure layout
-    max_slide = int(all_reactions_df['slide_order'].max()) if len(all_reactions_df) > 0 else 10
+    # # Configure layout
+    # max_slide = int(all_reactions_df['slide_order'].max()) if len(all_reactions_df) > 0 else 10
 
-    fig.update_layout(
-        title="🎭 Emotion Wheel - Colored Segments<br><sub>Each ring = slide | Each segment = emotion type | Color intensity = reaction count</sub>",
-        polar=dict(
-            bgcolor='rgba(250,250,250,0.8)',
-            radialaxis=dict(
-                visible=False,
-                range=[0, max_slide + 1],
-                tickmode='linear',
-                tick0=1,
-                dtick=1,
-                title="Slide Number",
-                gridcolor='lightgray',
-                gridwidth=1
-            ),
-            angularaxis=dict(
-                visible=True,
-                tickmode='array',
-                tickvals=[config['angle'] for config in emotion_map.values()],
-                ticktext=[f"{config['emoji']} {config['name']}" for config in emotion_map.values()],
-                direction='clockwise',
-                rotation=0,
-                gridcolor='lightgray',
-                linecolor='darkgray'
-            )
-        ),
-        width=800,
-        height=800,
-        showlegend=False
-    )
+    # fig.update_layout(
+    #     title="Emotional Ring",
+    #     polar=dict(
+    #         bgcolor='rgba(250,250,250,0.8)',
+    #         radialaxis=dict(
+    #             visible=True,
+    #             range=[1, max_slide + 2],
+    #             tickmode='linear',
+    #             tick0=0,
+    #             dtick=10,
+    #             gridcolor='lightgray',
+    #             gridwidth=1
+    #         ),
+    #         angularaxis=dict(
+    #             visible=True,
+    #             tickmode='array',
+    #             tickvals=[config['angle'] for config in emotion_map.values()],
+    #             ticktext=[f"{config['emoji']} {config['name']}" for config in emotion_map.values()],
+    #             direction='clockwise',
+    #             rotation=0,
+    #             gridcolor='lightgray',
+    #             linecolor='darkgray'
+    #         )
+    #     ),
+    #     width=800,
+    #     height=800,
+    #     showlegend=False,
+    #     font=dict(
+    #         family="Plus Jakarta Sans, Arial, sans-serif",
+    #         size=14,
+    #         color="#262730"
+    #     )
+    # )
 
     # Display the chart
-    st.plotly_chart(fig, use_container_width=True)
+    # st.plotly_chart(fig, use_container_width=True)
 
 import time
 
