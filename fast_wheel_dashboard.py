@@ -1,7 +1,12 @@
+from emotional_wheel_dashboard import emotion_map, get_all_slide_reactions
 import streamlit as st
 import plotly.graph_objects as go
 import pandas as pd
 import numpy as np
+
+from user_map import user_map
+from warehouse_repo import get_presentations_of_user
+from warehouse_v5_repo import get_reactions_data_for_presentation, get_slides
 
 
 def create_progressive_ring_wheel(ring_df):
@@ -24,6 +29,7 @@ def create_progressive_ring_wheel(ring_df):
 
         for slide_num in visible_slides:
             slide_data = ring_df[ring_df['slide_order'] == slide_num]
+            slide_title = slide_data['slide_title'].iloc[0]
 
             for _, row in slide_data.iterrows():
                 if row['submission_count'] > 0:
@@ -43,7 +49,7 @@ def create_progressive_ring_wheel(ring_df):
                         ),
                         showlegend=False,
                         hovertemplate=(
-                            f"<b>Slide {slide_num}</b><br>" +
+                            f"<b>Slide {slide_num} - {slide_title} </b><br>" +
                             f"Emotion: {row['emotion_emoji']} {row['emotion_name']}<br>" +
                             f"Reactions: {row['submission_count']}<br>" +
                             f"Participants: {row['participant_count']}<br>" +
@@ -93,14 +99,64 @@ def create_progressive_ring_wheel(ring_df):
     st.success("✨ Ring building complete!")
     return fig
 
+@st.cache_data
+def load_reaction_data(presentation_id):
+    """Load and process the reaction data"""
+    reactions = get_reactions_data_for_presentation(presentation_id)
+
+    slides = get_slides(presentation_id)
+    df = reactions.merge(slides, on='Slide Id')
+    df = df[df['Deleted'] == False]
+    df = df.drop('Deleted', axis=1)
+
+
+    reaction_to_emoji = {
+        'heart': '❤️',
+        'like': '👍',
+        'sad': '😢',
+        'wow': '😮',
+        'question': '🧐',
+        'laugh': '😆'
+    }
+
+    df['Reaction'] = df['Reaction Type'].map(lambda x: reaction_to_emoji.get(x, '👀'))
+
+    return df
+
 
 def main():
+    st.set_page_config(layout="wide")
+    col1, col2 = st.columns([3, 1])
+
+    params = st.query_params
+    user = params.get('user', 'cheryl')
+    if user not in user_map:
+        st.write('Not supported user')
+        return
+    user_id = user_map.get(user)
+    presentation_df = get_presentations_of_user(user_id)
+    presentation_df = presentation_df.sort_values(by='createdat', ascending=False)
+
+    with col2:
+        presentations = presentation_df.to_dict(orient='records')
+        default_idx = 1
+        selected_presentation = st.selectbox('Select presentation:', list(presentations), format_func=lambda x: x['name'], index=default_idx)
+        st.session_state.selected_presentation = selected_presentation
+
+
+    if st.session_state.selected_presentation:
+        presentation_id = st.session_state.selected_presentation['id']
+    else:
+        presentation_id = 7021758
 
     try:
-        df = pd.read_csv("~/Documents/2025-11-21T06-56_export.csv")
-        df = df.dropna(subset=['slide_order', 'reaction_type', 'submission_count'])
+        df = load_reaction_data(presentation_id)
+        all_reactions_df = get_all_slide_reactions(df, emotion_map)
 
-        create_progressive_ring_wheel(df)
+        if len(all_reactions_df) > 0:
+            create_progressive_ring_wheel(all_reactions_df)
+        else:
+            st.write('No reaction data')
     except Exception as e:
         st.error(f"Error loading your data: {e}")
 

@@ -66,6 +66,5 @@ if __name__ == "__main__":
     with col1:
         if len(all_reactions_df) > 0:
             create_progressive_ring_wheel(all_reactions_df)
-            fig = create_emotional_wheel(all_reactions_df)
         else:
             st.error("No reaction to display.")
