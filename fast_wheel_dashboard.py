@@ -9,6 +9,7 @@ from warehouse_repo import get_presentations_of_user
 from warehouse_v5_repo import get_reactions_data_for_presentation, get_slides
 
 
+
 def create_progressive_ring_wheel(ring_df):
     """
     Alternative approach: Build rings progressively without complex frame management
@@ -18,7 +19,8 @@ def create_progressive_ring_wheel(ring_df):
 
     slides = sorted(ring_df['slide_order'].unique())
 
-    max_count = ring_df['submission_count'].max()
+    max_count = ring_df.groupby('reaction_type')['submission_count'].max()
+    # max_count = ring_df['submission_count'].max()
 
     # Build progressively
     for frame_idx, current_slide in enumerate(slides):
@@ -33,11 +35,9 @@ def create_progressive_ring_wheel(ring_df):
 
             for _, row in slide_data.iterrows():
                 if row['submission_count'] > 0:
-                    intensity = 0.3 + (row['submission_count'] / max_count) * 0.7
+                    intensity = 0.3 + (row['submission_count'] / max_count[row['reaction_type']]) * 0.7
                     angular_width = 72
-
                     fig.add_trace(go.Barpolar(
-                        # r=[row['submission_count']],
                         r=[1.1],
                         theta=[row['emotion_angle']],
                         width=[angular_width],
@@ -63,7 +63,7 @@ def create_progressive_ring_wheel(ring_df):
             polar=dict(
                 radialaxis=dict(
                     visible=True,
-                    range=[0, len(slides) + max_count],
+                    range=[0, max(slides) + 1],
                     showticklabels=True,
                     gridcolor='lightgray'
                 ),
