@@ -1,3 +1,5 @@
+from functools import reduce
+import operator
 import streamlit as st
 from user_map import user_map
 from warehouse_repo import get_interactions_of_presentation, get_presentations_of_user
@@ -29,36 +31,61 @@ def create_minimal_pulse(data, y_column):
     minimal_data = []
 
     for _, row in data.iterrows():
-        slide_num = row['#']
-        engagement = row[y_column]
+        try:
+            slide_num = row['#']
+            engagement = row[y_column]
 
-        if engagement > 5:
-            # Just 3 points: dip -> peak -> dip
-            points = [
-                (slide_num - 0.15, engagement * 0.1),  # Left dip
-                (slide_num, engagement),               # Peak
-                (slide_num + 0.15, engagement * 0.1)   # Right dip
-            ]
-        else:
-            # Single flat point
-            points = [(slide_num, engagement * 0.1)]
+            if engagement > 5:
+                # Just 3 points: dip -> peak -> dip
+                points = [
+                    (slide_num - 0.15, engagement * 0.1),  # Left dip
+                    (slide_num, engagement),               # Peak
+                    (slide_num + 0.15, engagement * 0.1)   # Right dip
+                ]
+            else:
+                # Single flat point
+                points = [(slide_num, engagement * 0.1)] * 3
 
-        for x, y in points:
-            minimal_data.append({
-                'x_pos': x,
-                'y_pulse': y,
-                'slide_num': slide_num,
-                'original_engagement': engagement,
-                'slide_title': row['Slidetitle']
-            })
+            for x, y in points:
+                minimal_data.append({
+                    'x_pos': x,
+                    'y_pulse': y,
+                    'slide_num': slide_num,
+                    'original_engagement': engagement,
+                    'slide_title': row['Slidetitle']
+                })
+        except:
+            st.write(f'Error in loop: {slide_num}')
 
     return pd.DataFrame(minimal_data).sort_values('x_pos')
 
 
-def create_pulse_chart(minimal_pulse_df):
+def create_dual_pulse_chart(df_list, color_field='color_field', colors=['#FF4081', '#6A1EBB'], color_title='Color Title', title='AhaPulse - Dual Engagement Report'):
+    df = pd.concat(df_list)
+    # Create chart with color encoding by dataset
+    chart = alt.Chart(df).mark_line(
+        size=3,
+        strokeCap='round',
+        interpolate='linear'
+    ).encode(
+        x=alt.X('x_pos:Q', title='Slide number'),
+        y=alt.Y('y_pulse:Q', title='Engagement pulse'),
+        color=alt.Color(f'{color_field}:N',
+                       scale=alt.Scale(range=colors),  # Custom colors
+                       title=color_title),
+        tooltip=['slide_title:N', 'original_engagement:Q', f'{color_field}:N', 'slide_num:N']
+    ).properties(
+        title=title,
+        width=900,
+        height=250
+    )
+    st.altair_chart(chart, use_container_width=True)
+
+
+def create_pulse_chart(minimal_pulse_df, color='#FF4081'):
     minimal_chart = alt.Chart(minimal_pulse_df).mark_line(
         size=3,
-        color='#FF4081',
+        color=color,
         strokeCap='round',
         interpolate='linear'
     ).encode(
@@ -94,18 +121,27 @@ if __name__ == "__main__":
             st.session_state.selected_presentation = selected_presentation
 
 
+
         if st.session_state.selected_presentation:
             presentation_id = st.session_state.selected_presentation['id']
         else:
             presentation_id = 7021758
-        engagement_df = get_engagement_df_for_presentation(presentation_id)
-        if len(engagement_df) > 0:
-            minimal_pulse_df = create_minimal_pulse(engagement_df, 'Percent of engaged audience')
-            create_pulse_chart(minimal_pulse_df)
-        else:
-            st.write('No engagement data for this presentation')
 
+        colors = ['#FF4081', '#6A1EBB']
+        with col1:
+            df_list = []
+            charts = []
+            options = ["answer", "reaction"]
+            for idx, option in enumerate(options):
+                engagement_df = get_engagement_df_for_presentation(presentation_id, [option])
+                st.write(len(engagement_df))
+                if len(engagement_df) > 0:
+                    minimal_pulse_df = create_minimal_pulse(engagement_df, 'Percent of engaged audience')
+                    minimal_pulse_df['Engagement Type'] = option
+                    df_list.append(minimal_pulse_df)
 
-
-
-
+            if len(df_list) == 0:
+                st.write('No engagement data for this presentation')
+            else:
+                # chart = create_pulse_chart(minimal_pulse_df, color=colors[0])
+                create_dual_pulse_chart(df_list, color_field='Engagement Type', colors=colors, color_title='Engagement Type', title='AhaPulse - Dual Engagement')

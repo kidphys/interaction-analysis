@@ -706,20 +706,22 @@ def get_engagement_for_presentation(presentation_id):
             )
     )
 
-    select engagement.*,
+    select engagement.participant_id,
+        engagement.engagement_type,
+        dq.slide_id,
         slide_title,
         slide_order
-    from engagement join aha_report_v5.dim_questions dq
+    from engagement right join aha_report_v5.dim_questions dq
     on engagement.slide_id = dq.slide_id
-    where dq.presentation_id = {presentation_id}
+    where dq.presentation_id = {presentation_id} and dq.deleted = false
     """
     rows = execute(sql)
     df = pd.DataFrame(rows, columns=[
         'Participant Id',
-        'Slide Id',
         'Engagement Type',
+        'Slide Id',
         'Slide Title',
-        'Slide Order'
+        'Slide Order',
     ])
     return df
 
@@ -744,19 +746,20 @@ def execute_queries_parallel(query_map):
 
     return results
 
-
-def get_engagement_df_for_presentation(presentation_id):
-    # query_map = {
-    #     'engagement_data': lambda : get_engagement_for_presentation(presentation_id),
-    #     'total_participant': lambda : get_total_participants_joined(presentation_id)
-    # }
-    # return execute_queries_parallel(query_map)
+def get_engagement_df_for_presentation(presentation_id, engagement_types=['answer', 'reaction']):
     engagement_df = get_engagement_for_presentation(presentation_id)
-    total_participant_count = get_total_participants_joined(presentation_id)
-    engagement_df = engagement_df.groupby(['Slide Title', 'Slide Order']).nunique()['Participant Id'].reset_index().sort_values(by='Slide Order')
+    # keeping al slides data, clear type not in my list
+    mask = ~engagement_df['Engagement Type'].isin(engagement_types + [None])
+    engagement_df.loc[mask, ['Participant Id', 'Engagement Type']] = None
+    engagement_df = engagement_df.groupby(['Slide Title', 'Slide Order', 'Slide Id'], dropna=False).nunique()['Participant Id'].reset_index()
     engagement_df['Slidetitle'] = engagement_df['Slide Title']
+    engagement_df = engagement_df.sort_values(by='Slide Order')
     engagement_df['#'] = range(1, len(engagement_df) + 1)
-    engagement_df['Percent of engaged audience'] = engagement_df['Participant Id'] / total_participant_count * 100
+    total_participant_count = get_total_participants_joined(presentation_id)
+    if total_participant_count == 0:
+        engagement_df['Percent of engaged audience'] = 0
+    else:
+        engagement_df['Percent of engaged audience'] = engagement_df['Participant Id'] / total_participant_count * 100
     return engagement_df
 
 
