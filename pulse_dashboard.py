@@ -99,8 +99,11 @@ if __name__ == "__main__":
         else:
             presentation_id = 7021758
         engagement_df = get_engagement_df_for_presentation(presentation_id)
-        minimal_pulse_df = create_minimal_pulse(engagement_df, 'Percent of engaged audience')
-        create_pulse_chart(minimal_pulse_df)
+        if len(engagement_df) > 0:
+            minimal_pulse_df = create_minimal_pulse(engagement_df, 'Percent of engaged audience')
+            create_pulse_chart(minimal_pulse_df)
+        else:
+            st.write('No engagement data for this presentation')
 
 
 
