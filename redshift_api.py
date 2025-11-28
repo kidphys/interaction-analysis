@@ -88,7 +88,6 @@ def pure_execute(sql):
 def execute(sql):
     return _execute(sql, st_create_engine)
 
-
 def _execute_with_columns(sql, create_engine: Callable):
     engine = create_engine()
     with engine.connect() as conn:
@@ -106,4 +105,9 @@ def execute_with_columns(sql):
     print(f'{len(rows)} rows in {arrow.now() - now}')
     return rows, cols
 
-
+@st.cache_resource(ttl='60m')
+def st_execute_with_columns(sql):
+    now = arrow.now()
+    rows, cols = _execute_with_columns(sql, _create_engine)
+    print(f'{len(rows)} rows in {arrow.now() - now}')
+    return rows, cols

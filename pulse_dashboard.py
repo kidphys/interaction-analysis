@@ -1,8 +1,11 @@
 import streamlit as st
-from warehouse_repo import get_interactions_of_presentation
+from user_map import user_map
+from warehouse_repo import get_interactions_of_presentation, get_presentations_of_user
 import altair as alt
 import pandas as pd
 import numpy as np
+
+from warehouse_v5_repo import get_engagement_df_for_presentation, get_engagement_for_presentation, get_total_participants_joined
 
 
 def enrich_interaction_data(df):
@@ -72,12 +75,32 @@ def create_pulse_chart(minimal_pulse_df):
 
 
 if __name__ == "__main__":
-    # Your existing data processing code
-    df = get_interactions_of_presentation(7453082)
+    st.set_page_config(layout="wide")
+    col1, col2 = st.columns([3, 1])
 
-    reaction_df = enrich_interaction_data(df)
-    minimal_pulse_df = create_minimal_pulse(reaction_df, 'Percent of engaged audience')
-    create_pulse_chart(minimal_pulse_df)
+    params = st.query_params
+    user = params.get('user', 'cheryl')
+    if user not in user_map:
+        st.write('Not supported user')
+    else:
+        user_id = user_map.get(user)
+        presentation_df = get_presentations_of_user(user_id)
+        presentation_df = presentation_df.sort_values(by='createdat', ascending=False)
+
+        with col2:
+            presentations = presentation_df.to_dict(orient='records')
+            default_idx = 1
+            selected_presentation = st.selectbox('Select presentation:', list(presentations), format_func=lambda x: x['name'], index=default_idx)
+            st.session_state.selected_presentation = selected_presentation
+
+
+        if st.session_state.selected_presentation:
+            presentation_id = st.session_state.selected_presentation['id']
+        else:
+            presentation_id = 7021758
+        engagement_df = get_engagement_df_for_presentation(presentation_id)
+        minimal_pulse_df = create_minimal_pulse(engagement_df, 'Percent of engaged audience')
+        create_pulse_chart(minimal_pulse_df)
 
 
 

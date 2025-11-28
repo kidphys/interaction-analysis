@@ -1,3 +1,4 @@
+from concurrent.futures import as_completed
 from concurrent.futures import ThreadPoolExecutor
 from re import I
 from typing import List
@@ -683,3 +684,79 @@ def get_reactions_data_for_presentation(presentation_id):
         'Updatedat'
     ])
     return df
+
+
+def get_engagement_for_presentation(presentation_id):
+    print(f'get_engagement_for_presentation({presentation_id})')
+    sql = f"""with engagement as
+    (
+        (select
+            participant_id,
+            slide_id,
+            'answer' as engagement_type
+            from aha_report_v5.fact_answers2 fa
+            where fa.presentation_id = {presentation_id})
+            union all
+            (select
+            participant_id,
+            slide_id,
+            'reaction' as engagement_type
+            from aha_report_v5.fact_reactions3 fr
+            where fr.presentation_id = {presentation_id}
+            )
+    )
+
+    select engagement.*,
+        slide_title,
+        slide_order
+    from engagement join aha_report_v5.dim_questions dq
+    on engagement.slide_id = dq.slide_id
+    where dq.presentation_id = {presentation_id}
+    """
+    rows = execute(sql)
+    df = pd.DataFrame(rows, columns=[
+        'Participant Id',
+        'Slide Id',
+        'Engagement Type',
+        'Slide Title',
+        'Slide Order'
+    ])
+    return df
+
+
+def execute_queries_parallel(query_map):
+    results = {}
+
+    with ThreadPoolExecutor() as executor:
+        # Submit all tasks (no parameters needed)
+        future_to_key = {
+            executor.submit(func): key
+            for key, func in query_map.items()
+        }
+
+        # Collect results as they complete
+        for future in as_completed(future_to_key):
+            key = future_to_key[future]
+            try:
+                results[key] = future.result()
+            except Exception as exc:
+                results[key] = f"Error: {exc}"
+
+    return results
+
+
+def get_engagement_df_for_presentation(presentation_id):
+    # query_map = {
+    #     'engagement_data': lambda : get_engagement_for_presentation(presentation_id),
+    #     'total_participant': lambda : get_total_participants_joined(presentation_id)
+    # }
+    # return execute_queries_parallel(query_map)
+    engagement_df = get_engagement_for_presentation(presentation_id)
+    total_participant_count = get_total_participants_joined(presentation_id)
+    engagement_df = engagement_df.groupby(['Slide Title', 'Slide Order']).nunique()['Participant Id'].reset_index().sort_values(by='Slide Order')
+    engagement_df['Slidetitle'] = engagement_df['Slide Title']
+    engagement_df['#'] = range(1, len(engagement_df) + 1)
+    engagement_df['Percent of engaged audience'] = engagement_df['Participant Id'] / total_participant_count * 100
+    return engagement_df
+
+
