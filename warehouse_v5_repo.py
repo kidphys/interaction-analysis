@@ -663,7 +663,7 @@ def get_reactions_data_for_presentation(presentation_id):
         fr.deleted,
         fr.updatedat
     FROM
-        aha_report_v5.fact_reactions2 fr
+        aha_report_v5.fact_reactions3 fr
     JOIN
         aha_report_v5.dim_participants dp
     ON
