@@ -333,6 +333,7 @@ It's CRITICAL to follow this guideline when generating SQL, people may die if yo
 - Use GROUP BY, CASE WHEN, UNION and window functions if needed to cover multiple views in one query.
 - Avoid calling the database multiple times for related data if one query can provide the result.
 - Always sort and limit your query to reduce the amount of data returned to analyze
+- Do not call tools more than 20 times. You must stop before that try your best to response base on what's available.
 
 ---
 
@@ -352,7 +353,7 @@ def pre_model_hook(state):
         strategy="last",
         token_counter=len,
         start_on=['human', 'ai'],
-        max_tokens=5,
+        max_tokens=20,
         include_system=True,
         allow_partial=True
     )
