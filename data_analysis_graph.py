@@ -162,7 +162,8 @@ def fanout_to_worker(state: AnalysisState):
 # === WORKER NODE: query_builder + executor combined ===
 
 
-def get_schema_info(df: pd.DataFrame) -> str:
+def get_schema_info(csv_path: str) -> str:
+    df = pd.read_csv(csv_path)
     for col in df.columns:
         if df[col].dtype == 'object':
             df[col] = df[col].astype('string')
@@ -176,7 +177,29 @@ def get_schema_info(df: pd.DataFrame) -> str:
     con.register("user_table", pa.Table.from_pandas(df))
     res = con.execute("DESCRIBE user_table;").fetchdf()
     res = res[["column_name", "column_type"]]
-    return str(res)
+    con.close()
+    return f"""
+    Table: {get_table_name_from_csv_path(csv_path)}
+    Schema:
+    {str(res)}
+    """
+
+
+def get_schema_info_from_csv_paths(csv_paths: List[str]) -> str:
+    return '\n'.join([get_schema_info(csv_path) for csv_path in csv_paths])
+
+
+def get_table_name_from_csv_path(csv_path: str) -> str:
+    return csv_path.split('/')[-1].replace('.csv', '')
+
+
+def create_duckdb_conn(csv_paths: List[str]) -> duckdb.DuckDBPyConnection:
+    conn = duckdb.connect(":memory:")
+    for csv_path in csv_paths:
+        table_name = get_table_name_from_csv_path(csv_path)
+        conn.register(table_name, pa.Table.from_pandas(pd.read_csv(csv_path)))
+    return conn
+
 
 def worker_node(state: AnalysisState) -> Dict[str, Any]:
     """
@@ -189,14 +212,10 @@ def worker_node(state: AnalysisState) -> Dict[str, Any]:
     """
     task = state["task"]
     desc = task["description"]
-    current_csv_path = state["current_csv_path"]
-    df = pd.read_csv(current_csv_path)
 
-    conn = duckdb.connect(":memory:")
-    table_name = current_csv_path.split('/')[-1].replace('.csv', '')
-    conn.register(table_name, pa.Table.from_pandas(df))
+    conn = create_duckdb_conn(state["current_csv_path"])
 
-    schema_info = get_schema_info(df)
+    schema_info = get_schema_info_from_csv_paths(state["current_csv_path"])
     print("\n=== NODE: worker ===")
     print("Running:", task["id"], "-", desc)
 
@@ -213,7 +232,6 @@ Generate SQL that retrieves the data needed to answer the following analytical t
 
 ## Schema information
 Use exactly the columns below. Do NOT invent or query any other tables.
-Table name: {table_name}
 Schema:
 {schema_info}
 

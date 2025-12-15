@@ -13,10 +13,10 @@ import pandas as pd
 import duckdb
 import tempfile
 import os
-from typing import Optional
+from typing import List, Optional
 from langchain.tools import tool
 from langgraph.graph.state import RunnableConfig
-from data_analysis_graph import build_graph, build_parallel_only_graph, get_schema_info
+from data_analysis_graph import build_graph, build_parallel_only_graph, get_schema_info, get_schema_info_from_csv_paths, get_table_name_from_csv_path
 from react_agent_dashboard import display_structured_response, st_process_user_prompt
 from structured_agent import (
     StructuredAgent,
@@ -60,8 +60,9 @@ def run_duckdb_query_tool(sql: str, config: RunnableConfig):
         # Create DuckDB connection
         conn = duckdb.connect()
 
-        # Register the CSV file as a table
-        conn.execute(f"CREATE TABLE data AS SELECT * FROM read_csv_auto('{_current_csv_path}')")
+        for csv_path in _current_csv_path:
+            table_name = get_table_name_from_csv_path(csv_path)
+            conn.execute(f"CREATE TABLE {table_name} AS SELECT * FROM read_csv_auto('{csv_path}')")
 
         # Execute the query
         result = conn.execute(sql).fetchall()
@@ -226,7 +227,7 @@ def run_parallel_queries(question: str, sub_tasks: list[str], config: RunnableCo
 class CSVStructuredAgent(StructuredAgent):
     """StructuredAgent configured for CSV analysis with DuckDB"""
 
-    def __init__(self, csv_path: str):
+    def __init__(self, csv_path: List[str]):
         self.csv_path = csv_path
 
         # Initialize the base StructuredAgent but override the tool
@@ -240,9 +241,11 @@ class CSVStructuredAgent(StructuredAgent):
         memory = MemorySaver()
         model = init_chat_model(self.model_name, max_tokens=8096)
         tools = [run_parallel_queries]
-        df = pd.read_csv(self.csv_path)
-        system_prompt = PromptTemplate.from_template(system_prompt_template).invoke({"table_schema": get_schema_info(df)})
+
+        schema_text = get_schema_info_from_csv_paths(self.csv_path)
+        system_prompt = PromptTemplate.from_template(system_prompt_template).invoke({"table_schema": schema_text})
         sys_message = SystemMessage(content=system_prompt.text)
+        # tools.append(run_duckdb_query_tool(sys_message.content, {"configurable": {"current_csv_path": self.csv_path}}))
 
         self.agent_executor = create_react_agent(
             model, tools, checkpointer=memory,
@@ -352,10 +355,12 @@ def create_csv_dashboard():
                 csv_filename = uploaded_file.name.replace('.csv', '')
                 temp_csv_path = os.path.join(temp_dir, f"{csv_filename}.csv")
                 df.to_csv(temp_csv_path, index=False)
-                st.session_state.csv_path = temp_csv_path
+                if st.session_state.csv_path is None:
+                    st.session_state.csv_path = []
+                st.session_state.csv_path.append(temp_csv_path)
 
                 # Initialize agent with CSV data
-                st.session_state.agent = CSVStructuredAgent(csv_path=temp_csv_path)
+                st.session_state.agent = CSVStructuredAgent(csv_path=st.session_state.csv_path)
 
                 st.success(f"✅ Loaded {len(df)} rows and {len(df.columns)} columns from {uploaded_file.name}")
 
