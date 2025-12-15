@@ -4,6 +4,7 @@ CSV files using DuckDB.
 """
 from langchain.chat_models import init_chat_model
 from langchain_core.messages import SystemMessage
+from langchain_core.prompts import PromptTemplate
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.prebuilt import create_react_agent
 import streamlit as st
@@ -15,7 +16,7 @@ import os
 from typing import Optional
 from langchain.tools import tool
 from langgraph.graph.state import RunnableConfig
-from data_analysis_graph import build_graph, build_parallel_only_graph
+from data_analysis_graph import build_graph, build_parallel_only_graph, get_schema_info
 from react_agent_dashboard import display_structured_response, st_process_user_prompt
 from structured_agent import (
     StructuredAgent,
@@ -95,8 +96,7 @@ def ask_data_analysis_agent(prompt: str):
     init_state = {"question": prompt}
     return app.invoke(init_state)
 
-
-system_prompt = """
+system_prompt_template = """
 You are a **helpful senior data analyst** who produces **concise, structured insights** for the user.
 
 You have access to an **expert data-analysis tool** that can run SQL queries in parallel and return structured results.
@@ -109,13 +109,33 @@ You have access to an **expert data-analysis tool** that can run SQL queries in 
 Before calling any tool, you must perform a **short, explicit planning step**:
 
 1. **Understand the question**
-   - Identify what metrics, comparisons, or breakdowns are needed to answer the user.
+    Purpose: Identify what metrics, comparisons, or breakdowns are needed to answer the user.
+    - **Performance?** → Need comprehensive comparisons
+    - **Relationship?** → Need correlation exploration
+    - **Trend?** → Need temporal analysis
+    - **Difference?** → Need distribution comparisons
 
-2. **Break the question into exactly 2 independent sub-questions**
+2. **CAST A WIDE NET FIRST**
+    Purpose: understand the broader landscape around your question
+    - **Don't immediately narrow to hypothesis variables**
+    - Explore the broader landscape around your question
+    - Look for unexpected patterns or outliers
+
+3. **CHALLENGE YOUR EXPECTATIONS**
+   - What do I expect to find and why?
+   - What would surprise me?
+   - What would contradict my hypothesis?
+
+4. **MULTI-ANGLE VALIDATION**
+   - Can I view this data from different dimensions?
+   - Do patterns hold across different segments/time periods?
+   - Are there confounding factors I haven't considered?
+
+5. **Break the question into 2-4 independent sub-questions**
    - Each sub-question must be **answerable by a single SQL query**.
    - Sub-questions must be **parallelizable**: no sub-question should depend on another.
 
-3. **Define exactly what the expert tool should output**
+6. **Define exactly what the expert tool should output**
    - For each sub-question, specify:
      * The measure or metric
      * Dimensions or grouping
@@ -123,6 +143,8 @@ Before calling any tool, you must perform a **short, explicit planning step**:
      * Column names expected in the output
 
 Your planning should be **concise and structured** — no long paragraphs.
+You should utilize the following schema of the avaiable data to plan more intelligently:
+{table_schema}
 
 For follow-ups, only call the tool again **if new or different data is required**.
 
@@ -138,11 +160,11 @@ Once the tool returns raw data:
 
 ---
 
-3. **Produce the final answer** in the required structured format (`InsightResponse`).
+## 3. **Produce the final answer** in the required structured format (`InsightResponse`).
 
 ---
 
-## ⚡ Response Format (REQUIRED)
+### ⚡ Response Format (REQUIRED)
 It is critical that you follow the structured format below.
 Your final response must contain an `items` list. Each item can be one of:
 
@@ -159,7 +181,7 @@ Your final response must contain an `items` list. Each item can be one of:
    - Show only the **top 10–15 rows** (most relevant results)
    - Data must be in **series orientation**:
      ```json
-     {column_name: [list_of_values]}
+     {{column_name: [list_of_values]}}
      ```
 
 3. **chart** – for visualizing data
@@ -218,7 +240,9 @@ class CSVStructuredAgent(StructuredAgent):
         memory = MemorySaver()
         model = init_chat_model(self.model_name, max_tokens=8096)
         tools = [run_parallel_queries]
-        sys_message = SystemMessage(content=system_prompt)
+        df = pd.read_csv(self.csv_path)
+        system_prompt = PromptTemplate.from_template(system_prompt_template).invoke({"table_schema": get_schema_info(df)})
+        sys_message = SystemMessage(content=system_prompt.text)
 
         self.agent_executor = create_react_agent(
             model, tools, checkpointer=memory,
