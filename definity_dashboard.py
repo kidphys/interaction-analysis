@@ -1,7 +1,7 @@
 """
 The list:
-    Number of activated users/number of licenses purchased (shows you whether people are actually using AhaSlides)
-    Ranking of the most activate users (sorted by number of live presentations hosted)
+    Number of active users/number of licenses purchased (shows you whether people are actually using AhaSlides)
+    Ranking of the most active users (sorted by number of live presentations hosted)
     Total events hosted
     Total participants engaged
     Usage trends over weeks/months (number of events, participants, responses submitted...)
@@ -40,7 +40,7 @@ def enrich_user_with_email(df):
 
 
 @st.cache_data(ttl='60m')
-def st_get_number_of_activated_users():
+def st_get_number_of_active_users():
     sql = f"""
    select COUNT(distinct user_id) from aha_report_v5.fact_answers2
 where user_id in ({', '.join(map(str, user_ids))})
@@ -49,7 +49,7 @@ where user_id in ({', '.join(map(str, user_ids))})
     return rows[0][0]
 
 
-def get_number_of_activated_users(start_date='2025-01-01', end_date='2025-12-30'):
+def get_number_of_active_users(start_date='2025-01-01', end_date='2025-12-30'):
     df = st_get_all_answers()
     df = df[(df['createdat'] >= start_date) & (df['createdat'] <= end_date)]
     return df['user_id'].nunique()
@@ -85,7 +85,7 @@ def get_users_stats(start_date='2025-01-01', end_date='2025-12-30'):
     return df
 
 
-def get_ranking_of_most_activate_users(start_date='2025-01-01', end_date='2025-12-30'):
+def get_ranking_of_most_active_users(start_date='2025-01-01', end_date='2025-12-30'):
     rank = get_users_stats(start_date=start_date, end_date=end_date)
     rank = enrich_user_with_email(rank)
     rank = rank.sort_values(by='events', ascending=False)
@@ -182,8 +182,8 @@ def main():
     col1, col2, col3, col4 = st.columns(4)
     with col1:
         with st.container(border=True, height=150):
-            activated_users_count = get_number_of_activated_users(start_date=st.session_state.start_date, end_date=st.session_state.end_date)
-            st.metric('Activeted users', activated_users_count)
+            active_users_count = get_number_of_active_users(start_date=st.session_state.start_date, end_date=st.session_state.end_date)
+            st.metric('Activeted users', active_users_count)
     with col2:
         with st.container(border=True, height=150):
             total_events_hosted = get_total_events_hosted(start_date=st.session_state.start_date, end_date=st.session_state.end_date)
@@ -237,11 +237,11 @@ def main():
     st.title('Biggest events')
     st.write(biggest_events.reset_index(drop=True)[['Event Name', 'Participants', 'Last Answered At']])
 
-    # Bar chart of ranking of the most activate users
-    most_activate_users = get_ranking_of_most_activate_users(start_date=st.session_state.start_date, end_date=st.session_state.end_date)
-    most_activate_users.rename(columns={'email': 'Email', 'events': 'Events', 'participants': 'Participants', 'answers': 'Answers'}, inplace=True)
-    st.title('Most activate users')
-    st.write(most_activate_users.reset_index(drop=True)[['Email', 'Events', 'Participants', 'Answers']])
+    # Bar chart of ranking of the most active users
+    most_active_users = get_ranking_of_most_active_users(start_date=st.session_state.start_date, end_date=st.session_state.end_date)
+    most_active_users.rename(columns={'email': 'Email', 'events': 'Events', 'participants': 'Participants', 'answers': 'Answers'}, inplace=True)
+    st.title('Most active users')
+    st.write(most_active_users.reset_index(drop=True)[['Email', 'Events', 'Participants', 'Answers']])
 
 
 if __name__ == "__main__":
@@ -257,7 +257,7 @@ if __name__ == "__main__":
         page_title="Definity dashboard",
         page_icon="🚀",
         menu_items={
-            'Get Help': None,
+            'Get Help': 'https://www.google.com',
             'Report a bug': None,
             'About': None
         }
