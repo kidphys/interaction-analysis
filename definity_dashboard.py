@@ -155,7 +155,8 @@ def st_get_ranking_of_the_biggest_events():
         fa.presentation_id,
         dp.title,
         COUNT(distinct participant_id) as count,
-        max(fa.createdat) as last_answered_at
+        max(fa.createdat) as last_answered_at,
+        count(fa.createdat) as answers_count
          from aha_report_v5.fact_answers2 fa
     join aha_report_v5.dim_presentations dp
     on fa.presentation_id = dp.id
@@ -233,9 +234,9 @@ def main():
     if biggest_events.empty:
         st.write('No data available for the selected date range')
         return
-    biggest_events.rename(columns={'title': 'Event Name', 'count': 'Participants', 'last_answered_at': 'Last Answered At'}, inplace=True)
+    biggest_events.rename(columns={'title': 'Event Name', 'count': 'Participants', 'last_answered_at': 'Last Answered At', 'answers_count': 'Answers Count'}, inplace=True)
     st.title('Biggest events')
-    st.write(biggest_events.reset_index(drop=True)[['Event Name', 'Participants', 'Last Answered At']])
+    st.write(biggest_events.reset_index(drop=True)[['Event Name', 'Participants', 'Answers Count', 'Last Answered At',]])
 
     # Bar chart of ranking of the most active users
     most_active_users = get_ranking_of_most_active_users(start_date=st.session_state.start_date, end_date=st.session_state.end_date)
