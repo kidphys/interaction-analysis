@@ -153,6 +153,7 @@ def st_get_ranking_of_the_biggest_events():
     sql = f"""
     select
         fa.presentation_id,
+        ds.hosted_by_presenter_name,
         dp.title,
         COUNT(distinct participant_id) as count,
         max(fa.createdat) as last_answered_at,
@@ -160,8 +161,10 @@ def st_get_ranking_of_the_biggest_events():
          from aha_report_v5.fact_answers2 fa
     join aha_report_v5.dim_presentations dp
     on fa.presentation_id = dp.id
+    join aha_report_v5.dim_sessions ds
+    on fa.presentation_id = ds.id
     where dp.user_id in ({', '.join(map(str, user_ids))})
-    group by fa.presentation_id, dp.title
+    group by fa.presentation_id, dp.title, ds.hosted_by_presenter_name
     """
     rows, cols= execute_with_columns(sql)
     df = pd.DataFrame(rows, columns=cols)
@@ -234,9 +237,16 @@ def main():
     if biggest_events.empty:
         st.write('No data available for the selected date range')
         return
-    biggest_events.rename(columns={'title': 'Event Name', 'count': 'Participants', 'last_answered_at': 'Last Answered At', 'answers_count': 'Answers Count'}, inplace=True)
+    biggest_events.rename(columns={'title': 'Event Name', 'count': 'Participants', 'last_answered_at': 'Last Answered At', 'answers_count': 'Answers Count', 'hosted_by_presenter_name': 'Presenter'}, inplace=True)
     st.title('Biggest events')
-    st.write(biggest_events.reset_index(drop=True)[['Event Name', 'Participants', 'Answers Count', 'Last Answered At',]])
+    # st.write(biggest_events.reset_index(drop=True)[['Event Name',  'Presenter', 'Participants', 'Answers Count', 'Last Answered At']])
+    st.dataframe(biggest_events.reset_index(drop=True)[['Event Name',  'Presenter', 'Participants', 'Answers Count', 'Last Answered At']],
+        column_config={
+        "Event Name": st.column_config.Column(
+            "Event Name",
+            width=300
+        )},
+        hide_index=True)
 
     # Bar chart of ranking of the most active users
     most_active_users = get_ranking_of_most_active_users(start_date=st.session_state.start_date, end_date=st.session_state.end_date)

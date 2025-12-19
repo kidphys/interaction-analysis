@@ -36,7 +36,7 @@ def _create_engine():
         max_overflow=10)
 
     sql = """
-    SELECT id FROM aha_report_x.mart_presentation_interactions LIMIT 1;
+    SELECT id FROM aha_report_v5.fact_answers2 LIMIT 1;
     """
 
     with engine.connect() as conn:
