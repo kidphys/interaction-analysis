@@ -44,3 +44,6 @@ chartSequentialColors = [
 ]
 [theme.sidebar]
 backgroundColor = "#F9F5FF"
+
+[server]
+maxUploadSize = 10000

@@ -372,10 +372,11 @@ class StructuredAgent:
     with messages, tables, and charts.
     """
 
-    def __init__(self, user_id="1472007", model_name="anthropic:claude-sonnet-4-20250514"):
+    def __init__(self, user_id="1472007", model_name="anthropic:claude-sonnet-4-20250514", system_prompt=system_prompt):
         self.user_id = user_id
         self.model_name = model_name
         self.agent_executor = None
+        self.system_prompt = system_prompt
         self._initialize_agent()
 
     def _initialize_agent(self):
@@ -383,7 +384,7 @@ class StructuredAgent:
         memory = MemorySaver()
         model = init_chat_model(self.model_name, max_tokens=8096)
         tools = [fast_query]
-        sys_message = SystemMessage(content=system_prompt)
+        sys_message = SystemMessage(content=self.system_prompt)
 
         self.agent_executor = create_react_agent(
             model, tools, checkpointer=memory,
