@@ -96,6 +96,10 @@ class ChartViz(BaseModel):
 VisualizationItem = Annotated[Union[TableViz, ChartViz], Field(discriminator="type")]
 
 class InsightItem(BaseModel):
+    id: Optional[str] = Field(
+        default=None,
+        description="Backend-assigned unique ID"
+    )
     message: MessageItem = Field(description="Exactly one insight message")
     visualization: VisualizationItem = Field(description="Exactly one visualization (table or chart)")
 
@@ -106,7 +110,7 @@ class InsightResponse(BaseModel):
 from langchain.output_parsers import PydanticOutputParser
 
 
-def analyze_data(question: str, data_table: str, model: str = 'anthropic:claude-sonnet-4-20250514', model_provider: str = '') -> Dict[str, Any]:
+def analyze_data(question: str, data_table: str, model: str = 'anthropic:claude-sonnet-4-20250514', model_provider: str = '') -> InsightResponse:
     parser = PydanticOutputParser(pydantic_object=InsightResponse)
 
     try:
@@ -117,7 +121,7 @@ def analyze_data(question: str, data_table: str, model: str = 'anthropic:claude-
         prompt = ChatPromptTemplate.from_template(data_commentor_prompt_template)
         chain = prompt | llm | parser
         response = chain.invoke({"question": question, "data_table": data_table, "output_schema": parser.get_format_instructions()})
-        return response.model_dump()
+        return response
     except Exception as e:
         return f"Questino: {question}\nError analyzing data: {e}"
 
