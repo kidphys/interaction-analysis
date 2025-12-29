@@ -1,10 +1,11 @@
 
 
-from typing import Any, Dict, List
+from typing import Annotated, Any, Dict, List, Literal, Optional, Union
 
 import duckdb
 from langchain.chat_models import init_chat_model
 from langchain_core.prompts import ChatPromptTemplate
+from pydantic import BaseModel, Field
 from slide_agents.prompt_sql_generator import prompt_template
 from slide_agents.prompt_data_commentor import prompt_template as data_commentor_prompt_template
 
@@ -37,17 +38,86 @@ def get_table_schemas(conn: duckdb.DuckDBPyConnection) -> Dict[str, str]:
     schema += f"Schema: {get_table_schema(table['name'])}\n"
   return schema
 
+from typing import Any, Dict, List, Literal, Optional, Union, Annotated
+from pydantic import BaseModel, Field
+
+# --- Items ---
+
+class MessageItem(BaseModel):
+    type: Literal["message"] = "message"
+    content: str = Field(description="Agent insight summary / analysis message")
+
+class TableViz(BaseModel):
+    type: Literal["table"] = "table"
+    title: str = Field(description="Title for the table")
+    data: Dict[str, List[Any]] = Field(
+        description="Table data in 'series' orient: {column_name: [values]}. All columns must be same length."
+    )
+
+class ChartViz(BaseModel):
+    type: Literal["chart"] = "chart"
+    title: str = Field(description="Title for the chart")
+
+    chart_type: Literal["bar", "line", "pie", "scatter", "stacked_bar"] = Field(
+        description="Type of chart"
+    )
+
+    # ✅ Optional because pie charts don't have axes
+    x_field: Optional[str] = Field(default=None, description="Column name used for x-axis/categories")
+    y_field: Optional[str] = Field(default=None, description="Column name used for y-axis/values")
+
+    series_field: Optional[str] = Field(default=None, description="Optional column used for grouping/series")
+
+    data: Dict[str, List[Any]] = Field(
+        description="Chart data in 'series' orient: {column_name: [values]}"
+    )
+
+    # ✅ Enforce what pie needs vs what cartesian charts need
+    # If you want strict validation, keep this validator; otherwise omit it.
+    # Pydantic v2:
+    @classmethod
+    def _is_pie(cls, v: "ChartViz") -> bool:
+        return v.chart_type == "pie"
+
+    def model_post_init(self, __context: Any) -> None:
+        if self.chart_type == "pie":
+            # For pie, require exactly two columns in data OR at least "label" + "value"-like
+            # (You can tighten this if you standardize keys.)
+            if self.x_field is not None or self.y_field is not None:
+                # allow, but typically not needed
+                pass
+        else:
+            # For bar/line/scatter/etc, axes must be present
+            if not self.x_field or not self.y_field:
+                raise ValueError("x_field and y_field are required for non-pie charts")
+
+
+# ✅ Discriminated union so Pydantic chooses correctly based on `type`
+VisualizationItem = Annotated[Union[TableViz, ChartViz], Field(discriminator="type")]
+
+class InsightItem(BaseModel):
+    message: MessageItem = Field(description="Exactly one insight message")
+    visualization: VisualizationItem = Field(description="Exactly one visualization (table or chart)")
+
+class InsightResponse(BaseModel):
+    items: List[InsightItem] = Field(description="List of message+visualization pairs")
+
+
+from langchain.output_parsers import PydanticOutputParser
+
 
 def analyze_data(question: str, data_table: str, model: str = 'anthropic:claude-sonnet-4-20250514', model_provider: str = '') -> Dict[str, Any]:
+    parser = PydanticOutputParser(pydantic_object=InsightResponse)
+
     try:
         if model_provider != '':
           llm = init_chat_model(model=model, model_provider=model_provider)
         else:
           llm = init_chat_model(model=model)
         prompt = ChatPromptTemplate.from_template(data_commentor_prompt_template)
-        chain = prompt | llm
-        response = chain.invoke({"question": question, "data_table": data_table})
-        return response.content.strip()
+        chain = prompt | llm | parser
+        response = chain.invoke({"question": question, "data_table": data_table, "output_schema": parser.get_format_instructions()})
+        return response.model_dump()
     except Exception as e:
         return f"Questino: {question}\nError analyzing data: {e}"
 

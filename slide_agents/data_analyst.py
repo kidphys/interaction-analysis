@@ -113,7 +113,6 @@ def persist_analysis_node(state: AnalysisState) -> AnalysisState:
     Persist the `AnalysisState` to a file so that we can review the analysis later
     """
     filename = state['name'] + '-analysis-' + '.json'
-    import pdb; pdb.set_trace()
     with open(filename, 'w') as f:
       json.dump(state, f, indent=2)
     return state
@@ -146,7 +145,7 @@ if __name__ == "__main__":
     "What are the top 20 most frequently appearing presentation titles, and how many times has each been delivered?",
     "What are the most common slide topics or themes across all presentations (identify by slide_title and slide_description patterns)?",
     "Which presentations have been delivered multiple times to similar audiences? Look for repeated presentation_titles across different delivery dates.",
-    # "What is the distribution of slide types across all presentations? Which formats dominate (e.g., text, interactive, visual)?",
+    "What is the distribution of slide types across all presentations? Which formats dominate (e.g., text, interactive, visual)?",
     # "Which slides or topics show the lowest engagement (answer_percentage)? What are their titles and descriptions?",
     # "Are there presentations that have high participant counts but low answer engagement? What topics do these cover?"
     ]

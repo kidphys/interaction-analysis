@@ -23,8 +23,7 @@ Assume the data is already correct and relevant.
 ---
 
 ## Output (STRICT FORMAT)
-Return your answer as a plain text string, contains:
-- Detailed explanation grounded in the data, including trends, comparisons, anomalies, and implications
+{output_schema}
 
 ## User question
 {question}
