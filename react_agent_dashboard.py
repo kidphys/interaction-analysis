@@ -118,7 +118,7 @@ def display_structured_response(response_content):
         # Handle structured response object
         for item in response_content.items:
             if item.type == "message":
-                st.markdown(f"💬 **Analysis:** {item.content}")
+                st.markdown(f"💬{item.content}")
             elif item.type == "table":
                 if item.title and item.title.strip():
                     st.markdown(f"📊 **{item.title}**")

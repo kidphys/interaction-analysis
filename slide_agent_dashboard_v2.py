@@ -33,8 +33,7 @@ class ResearchInput(BaseModel):
 
 message_with_cititation_prompt = """
 A helpful message that may include a reply, recommendation, argument, or encouragement.
-Include brief analysis only if data is needed to support your point. In that case include a citation_id.
-Do not invent data. Keep the message concise and natural.
+Include brief analysis only if data is needed to support your point. In that case include a citation_id, do not invent data.
 Keep the tone playful yet scientific.
 """
 
@@ -132,6 +131,9 @@ class SlideStructuredAgent(StructuredAgent):
         import duckdb
         conn = duckdb.connect('insight_items.duckdb')
         insight_repo = InsightRepository(conn)
+
+        print(f'\n\nOriginal response: {self.insight_response}')
+
         for item in self.insight_response.items:
             items.append(MessageItem(
                 type="message",
