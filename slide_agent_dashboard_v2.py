@@ -2,7 +2,7 @@
 This module provides a CSV data analysis agent which can run SQL queries on uploaded
 CSV files using DuckDB.
 """
-from typing import List
+from typing import List, Literal
 from langchain.chat_models import init_chat_model
 from langchain_core.messages import SystemMessage
 from langgraph.checkpoint.memory import MemorySaver
@@ -12,9 +12,13 @@ import streamlit as st
 from langchain.tools import tool
 from react_agent_dashboard import st_process_user_prompt, display_structured_response
 from slide_agents.data_analyst_graph import create_graph as create_data_analyst_graph
+from slide_agents.insight_repository import InsightRepository
 from structured_agent import (
+    ChartItem,
+    MessageItem,
     StructuredAgent,
     InsightResponse,
+    TableItem,
     pre_model_hook,
 )
 
@@ -27,7 +31,24 @@ class ResearchInput(BaseModel):
     questions: List[str] = Field(..., description="List of questions to answer")
 
 
-@tool(args_schema=ResearchInput)
+message_with_cititation_prompt = """
+A helpful message that may include a reply, recommendation, argument, or encouragement.
+Include brief analysis only if data is needed to support your point. In that case include a citation_id.
+Do not invent data. Keep the message concise and natural.
+Keep the tone playful yet scientific.
+"""
+
+class MessageWithCitation(BaseModel):
+    type: Literal["message"] = "message"
+    content: str = Field(description=message_with_cititation_prompt)
+    citation_id: str = Field(description="ID of the InsightItem this message references (if there is no citation, leave it blank)")
+
+
+class InsightResponseWithCitation(BaseModel):
+    items: List[MessageWithCitation] = Field(description="List of messages with citations")
+
+
+@tool
 def research(questions: List[str]):
     """
     Research the data to answer the questions.
@@ -45,16 +66,25 @@ def research(questions: List[str]):
         'csv_paths': csv_paths,
         'questions': questions
     }
-    g = create_data_analyst_graph()
-    res = g.invoke(state)
-    insights = []
-    for item in res['results']:
-        for insight in item['analysis']['items']:
-            insights.append({
-                'question': item['question'],
-                'message': insight['message']['content'],
-                'visualization': insight['visualization']
-            })
+    try:
+        g = create_data_analyst_graph()
+        res = g.invoke(state)
+        insights = []
+        for item in res['results']:
+            for insight in item['analysis']['items']:
+                insights.append({
+                    'question': item['question'],
+                    'message': insight['message']['content'],
+                    'citation_id': insight['id']
+                })
+    except Exception as e:
+        print('\n' + '-' * 100 + '\n')
+        print(f'Exception type: {type(e)}')
+        print(f'Args: {e.args}')
+        print('Full traceback:')
+        import traceback
+        traceback.print_exc()
+        raise e
     return insights
 
 
@@ -81,9 +111,51 @@ class SlideStructuredAgent(StructuredAgent):
 
         self.agent_executor = create_react_agent(
             model, tools, checkpointer=memory,
-            prompt=sys_message, response_format=InsightResponse,
+            prompt=sys_message, response_format=InsightResponseWithCitation,
             pre_model_hook=pre_model_hook
         )
+
+    def get_structured_output(self):
+        """
+        Get the structured output from the agent
+        Here we will convert InsightResponseWithCitation to InsightResponse
+        to make it compatible with UI
+        """
+        if self.insight_response is None:
+            return InsightResponse(items=[
+                MessageItem(
+                    type="message",
+                    content="⚠️ Structured output not found or not processed yet"
+                )
+            ])
+        items = []
+        import duckdb
+        conn = duckdb.connect('insight_items.duckdb')
+        insight_repo = InsightRepository(conn)
+        for item in self.insight_response.items:
+            items.append(MessageItem(
+                type="message",
+                content=item.content,
+            ))
+            if item.citation_id:
+                item = insight_repo.load(item.citation_id)
+                if item.visualization:
+                    # create table item or chart item based on the visualization type
+                    if item.visualization.type == "table":
+                        items.append(TableItem(
+                            type="table",
+                            data=item.visualization.data,
+                            title=item.visualization.title,
+                        ))
+                    elif item.visualization.type == "chart":
+                        items.append(ChartItem(
+                            type="chart",
+                            data=item.visualization.data,
+                            chart_type=item.visualization.chart_type,
+                            title=item.visualization.title,
+                        ))
+        return InsightResponse(items=items)
+
 
 def create_slide_agent_dashboard():
     # Page configuration

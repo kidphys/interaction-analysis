@@ -17,6 +17,48 @@ from structured_agent import (
 )
 
 
+def pretty_print(step):
+    print(f'\n' + '-' * 100 + '\n')
+    def print_dict(d, indent=0):
+        pad = '  ' * indent
+        for k, v in d.items():
+            if isinstance(v, dict):
+                print(f'{pad}{k} (dict):')
+                print_dict(v, indent + 1)
+            elif isinstance(v, list):
+                print(f'{pad}{k} (list):')
+                for i, elem in enumerate(v):
+                    elem_type = type(elem).__name__
+                    if isinstance(elem, dict):
+                        print(f'{pad}  [{i}] (dict):')
+                        print_dict(elem, indent + 2)
+                    elif isinstance(elem, list):
+                        print(f'{pad}  [{i}] (list): {elem}')
+                    else:
+                        print(f'{pad}  [{i}] ({elem_type}): {elem}')
+            else:
+                val_type = type(v).__name__
+                print(f'{pad}{k} ({val_type}): {v}')
+    if isinstance(step, list):
+        for i, item in enumerate(step):
+            item_type = type(item).__name__
+            if isinstance(item, dict):
+                print(f'Item {i} (dict):')
+                print_dict(item, 1)
+            elif isinstance(item, list):
+                print(f'Item {i} (list):')
+                for idx, val in enumerate(item):
+                    val_type = type(val).__name__
+                    print(f'  [{idx}] ({val_type}): {val}')
+            else:
+                print(f'Item {i} ({item_type}): {item}')
+    elif isinstance(step, dict):
+        print_dict(step)
+    else:
+        print(f'({type(step).__name__}): {step}')
+    print(f'-' * 100 + '\n')
+
+
 def stream_agent_response_ui(agent: StructuredAgent, prompt):
     """Stream the agent response with UI updates"""
 
@@ -29,7 +71,8 @@ def stream_agent_response_ui(agent: StructuredAgent, prompt):
         for step in agent.stream_query(prompt):
             if step and step.get("messages"):
                 print(f'\n' + '-' * 100 + '\n')
-                print(step)
+                pretty_print(step)
+                # print(step)
                 last_message = step["messages"][-1]
                 if hasattr(last_message, 'content') and last_message.content:
                     # Update the streaming display

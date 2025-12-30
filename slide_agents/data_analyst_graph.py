@@ -165,8 +165,8 @@ if __name__ == "__main__":
         'answer_stats_user_ids.csv',
     ]
     sample_queries_2 = [
-    "What are the top 20 most frequently appearing presentation titles, and how many times has each been delivered?",
-    # "What are the most common slide topics or themes across all presentations (identify by slide_title and slide_description patterns)?",
+    # "What are the top 20 most frequently appearing presentation titles, and how many times has each been delivered?",
+    "What are the most common slide topics or themes across all presentations (identify by slide_title and slide_description patterns)?",
     # "Which presentations have been delivered multiple times to similar audiences? Look for repeated presentation_titles across different delivery dates.",
     # "What is the distribution of slide types across all presentations? Which formats dominate (e.g., text, interactive, visual)?",
     # "Which slides or topics show the lowest engagement (answer_percentage)? What are their titles and descriptions?",

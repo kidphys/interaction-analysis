@@ -95,12 +95,25 @@ class ChartViz(BaseModel):
 # ✅ Discriminated union so Pydantic chooses correctly based on `type`
 VisualizationItem = Annotated[Union[TableViz, ChartViz], Field(discriminator="type")]
 
+insight_message_prompt = """
+Return insights as 2–3 sentences ONLY.
+
+Each insight must:
+- Make one clear claim
+- Cite at least one specific data point (number, %, delta, comparison)
+- Explain why it matters or what action it suggests
+
+Do NOT summarize data.
+Do NOT use vague language (e.g., "high", "low", "many").
+If you cannot support a claim with data, return NO_INSIGHT.
+"""
+
 class InsightItem(BaseModel):
     id: Optional[str] = Field(
         default=None,
         description="Backend-assigned unique ID"
     )
-    message: MessageItem = Field(description="Exactly one insight message")
+    message: MessageItem = Field(description=insight_message_prompt)
     visualization: VisualizationItem = Field(description="Exactly one visualization (table or chart)")
 
 class InsightResponse(BaseModel):
