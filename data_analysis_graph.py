@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import json
 import operator
-from re import T
 from typing import Any, Dict, List, Optional, TypedDict, Annotated
 
 from langchain_anthropic import ChatAnthropic
