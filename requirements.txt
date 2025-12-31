@@ -1,7 +1,7 @@
 redshift-connector==2.1.8
 sqlalchemy-redshift==0.8.14
 dotenv==0.9.9
-langchain>=0.0.350
+langchain>=0.3.27
 langchain-experimental>=0.0.47
 langchain-anthropic>=0.3.20
 langchain-community>=0.3.29
