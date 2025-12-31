@@ -136,8 +136,9 @@ def analyze_data(question: str, data_table: str, model: str = 'anthropic:claude-
         response = chain.invoke({"question": question, "data_table": data_table, "output_schema": parser.get_format_instructions()})
         return response
     except Exception as e:
-        return f"Questino: {question}\nError analyzing data: {e}"
-
+        return InsightResponse(items=[
+          InsightItem(message=MessageItem(content=f"Error analyzing data: {e}"), visualization=TableViz(type="table", title="Error", data={}))
+        ])
 
 sample_queries_2 = [
   "What are the top 20 most frequently appearing presentation titles, and how many times has each been delivered?",

@@ -3,11 +3,12 @@ This module provides a CSV data analysis agent which can run SQL queries on uplo
 CSV files using DuckDB.
 """
 from typing import List, Literal
+from typing import Union
 from langchain.chat_models import init_chat_model
 from langchain_core.messages import SystemMessage
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.prebuilt import create_react_agent
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, InstanceOf
 import streamlit as st
 from langchain.tools import tool
 from react_agent_dashboard import st_process_user_prompt, display_structured_response
@@ -32,19 +33,27 @@ class ResearchInput(BaseModel):
 
 
 message_with_cititation_prompt = """
-A helpful message that may include a reply, recommendation, argument, or encouragement.
-Include brief analysis only if data is needed to support your point. In that case include a citation_id, do not invent data.
+An analysis with data reference (using citation_id) to support your argument.
 Keep the tone playful yet scientific.
 """
 
-class MessageWithCitation(BaseModel):
+message_prompt = """
+Simple message, including reply, recommendation, arugment or encouragement from the agent.
+Keep the tone playful yet scientific.
+"""
+
+class Message(BaseModel):
     type: Literal["message"] = "message"
+    content: str = Field(description=message_prompt)
+
+class MessageWithCitation(BaseModel):
+    type: Literal["message_with_citation"] = "message_with_citation"
     content: str = Field(description=message_with_cititation_prompt)
     citation_id: str = Field(description="ID of the InsightItem this message references (if there is no citation, leave it blank)")
 
 
-class InsightResponseWithCitation(BaseModel):
-    items: List[MessageWithCitation] = Field(description="List of messages with citations")
+class InsightResponseV2(BaseModel):
+    items: List[Union[Message, MessageWithCitation]] = Field(description="List of messages")
 
 
 @tool
@@ -110,7 +119,7 @@ class SlideStructuredAgent(StructuredAgent):
 
         self.agent_executor = create_react_agent(
             model, tools, checkpointer=memory,
-            prompt=sys_message, response_format=InsightResponseWithCitation,
+            prompt=sys_message, response_format=InsightResponseV2,
             pre_model_hook=pre_model_hook
         )
 
@@ -139,7 +148,8 @@ class SlideStructuredAgent(StructuredAgent):
                 type="message",
                 content=item.content,
             ))
-            if item.citation_id:
+            # check type
+            if isinstance(item, MessageWithCitation):
                 item = insight_repo.load(item.citation_id)
                 if item.visualization:
                     # create table item or chart item based on the visualization type
