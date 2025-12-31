@@ -38,6 +38,9 @@ class AnalysisState(TypedDict, total=False):
     # Duckdb file
     duckdb_file: str
 
+    # Insight duckdb file
+    insight_duckdb_file: str
+
 
 models = [
   'gpt-4o-mini',
@@ -125,7 +128,7 @@ def persist_analysis_node(state: AnalysisState) -> AnalysisState:
     Persist the `AnalysisState` to a file so that we can review the analysis later
     """
     filename = state['name'] + '-analysis-' + '.json'
-    conn = duckdb.connect('insight_items.duckdb')
+    conn = duckdb.connect(state['insight_duckdb_file'])
     repo = InsightRepository(conn)
     try:
         with open(filename, 'w') as f:

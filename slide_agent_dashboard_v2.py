@@ -7,13 +7,14 @@ from typing import Union
 from langchain.chat_models import init_chat_model
 from langchain_core.messages import SystemMessage
 from langgraph.checkpoint.memory import MemorySaver
+from langgraph.graph.state import RunnableConfig
 from langgraph.prebuilt import create_react_agent
 from pydantic import BaseModel, Field, InstanceOf
 import streamlit as st
 from langchain.tools import tool
 from react_agent_dashboard import st_process_user_prompt, display_structured_response
 from slide_agents.data_analyst_graph import create_graph as create_data_analyst_graph
-from slide_agents.insight_repository import InsightRepository
+from slide_agents.insight_repository import InsightRepository, create_repository_from_duckdb_file
 from structured_agent import (
     ChartItem,
     MessageItem,
@@ -22,7 +23,7 @@ from structured_agent import (
     TableItem,
     pre_model_hook,
 )
-
+import duckdb
 
 from slide_agents.prompt_slide_agent import prompt_template as base_system_prompt_template
 
@@ -57,7 +58,7 @@ class InsightResponseV2(BaseModel):
 
 
 @tool
-def research(questions: List[str]):
+def research(questions: List[str], config: RunnableConfig):
     """
     Research the data to answer the questions.
     Returns insights with full visualization data.
@@ -66,13 +67,14 @@ def research(questions: List[str]):
     Returns:
         List of answers to the questions, each containing message and visualization data
     """
-    csv_paths = [
-        'answer_stats_user_ids.csv',
-    ]
+    csv_paths = config['configurable']['csv_paths']
+    name = config['configurable']['name']
+    insight_duckdb_file = config['configurable']['insight_duckdb_file']
     state = {
-        'name': 'answers_stats',
+        'name': name,
         'csv_paths': csv_paths,
-        'questions': questions
+        'questions': questions,
+        'insight_duckdb_file':insight_duckdb_file
     }
     try:
         g = create_data_analyst_graph()
@@ -97,8 +99,8 @@ def research(questions: List[str]):
 
 
 class SlideStructuredAgent(StructuredAgent):
-    def __init__(self, system_prompt: str, model_name: str, csv_file: str):
-        self.csv_file = csv_file
+    def __init__(self, system_prompt: str, model_name: str, csv_paths: List[str]):
+        self.csv_paths = csv_paths
         # Override system_prompt and model_name before calling super
         # We need to set these before _initialize_agent is called
         self.system_prompt = system_prompt
@@ -108,6 +110,7 @@ class SlideStructuredAgent(StructuredAgent):
         self.user_id = "1472007"  # Default user_id, not used in this context
         self.agent_executor = None
         self.insight_response = None
+        self.insight_duckdb_file = "insight_items.duckdb"
         self._initialize_agent()
 
     def _initialize_agent(self):
@@ -123,6 +126,17 @@ class SlideStructuredAgent(StructuredAgent):
             pre_model_hook=pre_model_hook
         )
 
+    def _get_config(self):
+        return {
+            "configurable": {
+                "thread_id": f"user_{self.user_id}",
+                "user_id": self.user_id,
+                "csv_paths": self.csv_paths,
+                "name": 'answer_stats',
+                "insight_duckdb_file": self.insight_duckdb_file
+            }
+        }
+
     def get_structured_output(self):
         """
         Get the structured output from the agent
@@ -137,9 +151,7 @@ class SlideStructuredAgent(StructuredAgent):
                 )
             ])
         items = []
-        import duckdb
-        conn = duckdb.connect('insight_items.duckdb')
-        insight_repo = InsightRepository(conn)
+        insight_repo = create_repository_from_duckdb_file(self.insight_duckdb_file)
 
         print(f'\n\nOriginal response: {self.insight_response}')
 
@@ -189,7 +201,7 @@ def create_slide_agent_dashboard():
             system_prompt=system_prompt_template,
             # model_name='claude-haiku-4-5-20251001',
             model_name='anthropic:claude-sonnet-4-20250514',
-            csv_file='answer_stats_user_ids.csv'
+            csv_paths=['answer_stats_user_ids.csv']
             )
 
     # Chat input

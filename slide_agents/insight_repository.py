@@ -13,6 +13,13 @@ import duckdb
 from slide_agents.query_node import InsightItem
 
 
+def create_repository_from_duckdb_file(duckdb_file: str) -> 'InsightRepository':
+    """
+    Create a repository from a DuckDB file.
+    """
+    conn = duckdb.connect(duckdb_file)
+    return InsightRepository(conn)
+
 class InsightRepository:
     """
     Repository for managing InsightItem persistence in DuckDB.
