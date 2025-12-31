@@ -51,27 +51,26 @@ def research(questions: List[str], config: RunnableConfig):
         'questions': questions,
         'insight_duckdb_file':insight_duckdb_file
     }
-    # try:
-        # g = create_data_analyst_graph()
-        # res = g.invoke(state)
-        # insights = []
-        # for item in res['results']:
-        #     for insight in item['analysis']['items']:
-        #         insights.append({
-        #             'question': item['question'],
-        #             'message': insight['message']['content'],
-        #             'citation_id': insight['id']
-        #         })
-    return [{"question": "What advanced or applied topics are underrepresented or missing entirely?", "message": "The data only covers \'Basic/General\' topics, suggesting that advanced or applied topics are missing entirely, with no data available on their engagement, participation, or content coverage. This matters because it implies a significant gap in the curriculum or content offerings. It suggests that there is a need to develop and include more advanced or applied topics to cater to the needs of learners who are looking for more in-depth knowledge.", "citation_id": "8e2d63fd086dc151"}, {"question": "What engagement patterns show where audiences might be experiencing fatigue with familiar content?", "message": "The audience may be experiencing fatigue with familiar content in the \'Brainstorm\' slide type, which has the lowest average engagement of 29.47 and a significant decline in engagement of -21.99. This suggests that the content may be too repetitive or stale, leading to decreased audience interest. To combat this, it\'s recommended to refresh the content or introduce new formats to re-engage the audience.", "citation_id": "dda8ee7378904124"}, {"question": "What engagement patterns show where audiences might be experiencing fatigue with familiar content?", "message": "The \'Pick Answer\' slide type has the highest occurrence count of 135, but its average engagement decline is 3.14, indicating potential fatigue. The \'Match Pairs\' slide type has a relatively high engagement volatility of 20.59, suggesting that the audience may be experiencing fatigue due to the repetitive nature of the content. To mitigate this, it\'s recommended to introduce more varied and dynamic content to keep the audience engaged.", "citation_id": "ff206c2a57e0c838"}, {"question": "What practical, hands-on, or decision-making focused training approaches are least used?", "message": "NO_INSIGHT", "citation_id": "ba668956f260c6f0"}, {"question": "What AhaSlides-specific features or use cases could be explored more deeply in training?", "message": "The \'Pick Answer\' slide type has the highest total number of slides with 135, and an average engagement of 71.07%, suggesting it is a widely used and moderately engaging feature that could be explored more deeply in training. Additionally, the \'Scales\' slide type has a high average number of answers per slide with 222.34, indicating its potential for in-depth discussion and exploration in training. The \'Word Cloud\' and \'Brainstorm\' slide types have low average engagement, with 47.55% and 30.55% respectively, suggesting they may require additional training or support to increase their effectiveness.", "citation_id": "6dc00c757aa5e8f7"}, {"question": "What AhaSlides-specific features or use cases could be explored more deeply in training?", "message": "The \'Short Answer\' slide type has the highest average engagement with 73.99%, and the \'Open Ended\' slide type has the lowest average engagement with 34.32%, indicating a need for more targeted training on effective question design and facilitation techniques. Furthermore, the \'Pick Answer\' slide type has the highest number of high-engagement slides with 75, suggesting its potential for creating engaging and interactive presentations.", "citation_id": "7c123df8e59aa612"}]
-    # except Exception as e:
-    #     print('\n' + '-' * 100 + '\n')
-    #     print(f'Exception type: {type(e)}')
-    #     print(f'Args: {e.args}')
-    #     print('Full traceback:')
-    #     import traceback
-    #     traceback.print_exc()
-    #     raise e
-    # return insights
+    try:
+        g = create_data_analyst_graph()
+        res = g.invoke(state)
+        insights = []
+        for item in res['results']:
+            for insight in item['analysis']['items']:
+                insights.append({
+                    'question': item['question'],
+                    'message': insight['message']['content'],
+                    'citation_id': insight['id']
+                })
+        return insights
+    except Exception as e:
+        print('\n' + '-' * 100 + '\n')
+        print(f'Exception type: {type(e)}')
+        print(f'Args: {e.args}')
+        print('Full traceback:')
+        import traceback
+        traceback.print_exc()
+        raise e
 
 import pandas as pd
 
