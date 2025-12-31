@@ -92,7 +92,7 @@ def display_insight_item(item: InsightItem):
                 )
     visual_item = _get_visual_item(item)
     st.badge(item.id)
-    st.markdown(item.message.message)
+    st.markdown(item.message.content)
     display_visualization(visual_item)
 
 
