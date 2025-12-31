@@ -1,3 +1,4 @@
+from typing import Union
 import streamlit as st
 import json
 import pandas as pd
@@ -110,6 +111,36 @@ def stream_agent_response_ui(agent: StructuredAgent, prompt):
         return agent.get_structured_output()
 
 
+def display_visualization(item: Union[TableItem, ChartItem]):
+    if item.type == "table":
+        display_table(item)
+    elif item.type == "chart":
+        display_chart(item)
+
+
+def display_table(item):
+    if item.title and item.title.strip():
+        st.markdown(f"📊 **{item.title}**")
+    df = pd.DataFrame(item.data)
+    st.dataframe(df)
+
+
+def display_chart(item):
+    if item.title and item.title.strip():
+        st.markdown(f"📈 **{item.title}**")
+    df = pd.DataFrame(item.data)
+    if item.chart_type == "bar":
+        st.bar_chart(df, x=df.columns[0], y=df.columns[1])
+    elif item.chart_type == "line":
+        st.line_chart(df, x=df.columns[0], y=df.columns[1])
+    elif item.chart_type == "area":
+        st.area_chart(df, x=df.columns[0], y=df.columns[1])
+    else:
+        # Default to dataframe if chart type not supported
+        st.dataframe(df)
+        st.info(f"Chart type '{item.chart_type}' displayed as table")
+
+
 def display_structured_response(response_content):
     """Helper function to display structured responses consistently"""
     if isinstance(response_content, InsightResponse):
@@ -120,24 +151,9 @@ def display_structured_response(response_content):
             if item.type == "message":
                 st.markdown(f"💬{item.content}")
             elif item.type == "table":
-                if item.title and item.title.strip():
-                    st.markdown(f"📊 **{item.title}**")
-                df = pd.DataFrame(item.data)
-                st.dataframe(df)
+                display_table(item)
             elif item.type == "chart":
-                if item.title and item.title.strip():
-                    st.markdown(f"📈 **{item.title}**")
-                df = pd.DataFrame(item.data)
-                if item.chart_type == "bar":
-                    st.bar_chart(df, x=df.columns[0], y=df.columns[1])
-                elif item.chart_type == "line":
-                    st.line_chart(df, x=df.columns[0], y=df.columns[1])
-                elif item.chart_type == "area":
-                    st.area_chart(df, x=df.columns[0], y=df.columns[1])
-                else:
-                    # Default to dataframe if chart type not supported
-                    st.dataframe(df)
-                    st.info(f"Chart type '{item.chart_type}' displayed as table")
+                display_chart(item)
         return True
     elif isinstance(response_content, str):
         print(f'-'*100 + '\n')
