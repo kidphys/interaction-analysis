@@ -70,8 +70,10 @@ def stream_agent_response_ui(agent: StructuredAgent, prompt):
 
     try:
         for step in agent.stream_query(prompt):
+            print(f'UI STEP')
+            print(f'\n' + '-' * 100 + '\n')
+            print(f'\nUI Step: {step}')
             if step and step.get("messages"):
-                print(f'\n' + '-' * 100 + '\n')
                 pretty_print(step)
                 # print(step)
                 last_message = step["messages"][-1]

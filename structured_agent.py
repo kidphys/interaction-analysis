@@ -426,6 +426,11 @@ class StructuredAgent:
                 self._get_config(),
                 stream_mode="values"
             ):
+                print(f'='*50)
+                print(f"Step updated: {step}")
+                print(f'='*50)
+
+
                 if step["messages"]:
                     last_message = step["messages"][-1]
 

@@ -99,7 +99,6 @@ def fanout_to_worker(state: AnalysisState):
 
 def query_node(state: AnalysisState) -> Dict[str, Any]:
     try:
-        print(f'\n Query node')
         conn = duckdb.connect(state['duckdb_file'])
         table_schemas = get_table_schemas(conn)
         task = state['task']

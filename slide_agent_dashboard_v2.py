@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field, InstanceOf
 import streamlit as st
 from langchain.tools import tool
 from react_agent_dashboard import display_visualization, st_process_user_prompt
-from slide_agents.data_analyst_graph import create_graph as create_data_analyst_graph
+# from slide_agents.data_analyst_graph import create_graph as create_data_analyst_graph
 from slide_agents.insight_repository import InsightRepository, create_repository_from_duckdb_file
 from slide_agents.message import InsightResponseV2, MessageWithCitation
 from slide_agents.query_node import InsightItem
@@ -32,45 +32,8 @@ from slide_agents.prompt_slide_agent import prompt_template as base_system_promp
 
 system_prompt_template = base_system_prompt_template
 
-@tool
-def research(questions: List[str], config: RunnableConfig):
-    """
-    Research the data to answer the questions.
-    Returns insights with full visualization data.
-    Args:
-        questions: List of questions to answer
-    Returns:
-        List of answers to the questions, each containing message and visualization data
-    """
-    csv_paths = config['configurable']['csv_paths']
-    name = config['configurable']['name']
-    insight_duckdb_file = config['configurable']['insight_duckdb_file']
-    state = {
-        'name': name,
-        'csv_paths': csv_paths,
-        'questions': questions,
-        'insight_duckdb_file':insight_duckdb_file
-    }
-    try:
-        g = create_data_analyst_graph()
-        res = g.invoke(state)
-        insights = []
-        for item in res['results']:
-            for insight in item['analysis']['items']:
-                insights.append({
-                    'question': item['question'],
-                    'message': insight['message']['content'],
-                    'citation_id': insight['id']
-                })
-        return insights
-    except Exception as e:
-        print('\n' + '-' * 100 + '\n')
-        print(f'Exception type: {type(e)}')
-        print(f'Args: {e.args}')
-        print('Full traceback:')
-        import traceback
-        traceback.print_exc()
-        raise e
+# Research tool definition - removed as we use flat graph
+
 
 import pandas as pd
 
@@ -134,6 +97,33 @@ def get_numbered_citation(insight_response: InsightResponseV2):
         citation_id: idx for idx, citation_id in enumerate(citation_list)
     }
 
+
+from slide_agents.flat_combined_graph import create_flat_combined_graph
+
+class AgentExecutor():
+
+    def __init__(self, checkpointer=None):
+        self.graph = create_flat_combined_graph(checkpointer=checkpointer)
+
+    def stream(self, messages: dict, config: dict, stream_mode="values"):
+        csv_paths = config['configurable']['csv_paths']
+        name = config['configurable']['name']
+        insight_duckdb_file = config['configurable']['insight_duckdb_file']
+        state = {
+            'name': name,
+            'csv_paths': csv_paths,
+            'insight_duckdb_file': insight_duckdb_file,
+            'messages': messages["messages"]
+        }
+        for step in self.graph.stream(state, config=config):
+            yield step
+
+    def get_structured_response(self, thread_id):
+        final_state = self.graph.get_state(
+            config={"configurable": {"thread_id": thread_id}}
+        )
+        return final_state.values['structured_response']
+
 class SlideStructuredAgent(StructuredAgent):
     def __init__(self, system_prompt: str, model_name: str, csv_paths: List[str],
         insight_duckdb_file: str = "insight_items.duckdb"):
@@ -151,17 +141,18 @@ class SlideStructuredAgent(StructuredAgent):
         self._initialize_agent()
 
     def _initialize_agent(self):
-        """Initialize the React agent with memory - override to use research tool instead of fast_query"""
+        """Initialize the flat combined graph agent"""
+        from slide_agents.flat_combined_graph import create_flat_combined_graph
         memory = MemorySaver()
-        model = init_chat_model(self.model_name, max_tokens=8096)
-        tools = [research]
-        sys_message = SystemMessage(content=self.system_prompt)
 
-        self.agent_executor = create_react_agent(
-            model, tools, checkpointer=memory,
-            prompt=sys_message, response_format=InsightResponseV2,
-            pre_model_hook=pre_model_hook
-        )
+        # The flat graph handles model and prompt via config or defaults.
+        # However, to inject our specific system prompt and model, we should probably rely on config.
+        # But create_flat_graph uses config.get('model_name') etc.
+        # We need to ensure when invoke is called, these are passed.
+        # But _get_config is used for invoke config.
+
+        # We create the graph.
+        self.agent_executor = AgentExecutor(checkpointer=memory)
 
     def _get_config(self):
         return {
@@ -170,7 +161,9 @@ class SlideStructuredAgent(StructuredAgent):
                 "user_id": self.user_id,
                 "csv_paths": self.csv_paths,
                 "name": 'answer_stats',
-                "insight_duckdb_file": self.insight_duckdb_file
+                "insight_duckdb_file": self.insight_duckdb_file,
+                "model_name": self.model_name,
+                "system_prompt": self.system_prompt
             }
         }
 
@@ -180,14 +173,16 @@ class SlideStructuredAgent(StructuredAgent):
         Here we will convert InsightResponseWithCitation to InsightResponse
         to make it compatible with UI
         """
-        if self.insight_response is None:
-            return InsightResponse(items=[
-                MessageItem(
-                    type="message",
-                    content="⚠️ Structured output not found or not processed yet"
-                )
-            ])
-        return self.insight_response
+        thread_id = f"user_{self.user_id}"
+        return self.agent_executor.get_structured_response(thread_id)
+        # if self.insight_response is None:
+        #     return InsightResponse(items=[
+        #         MessageItem(
+        #             type="message",
+        #             content="⚠️ Structured output not found or not processed yet"
+        #         )
+        #     ])
+        # return self.insight_response
 
 
 def display_structured_response(response_content, insight_duckdb_file: str = "insight_items.duckdb" ):
