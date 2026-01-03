@@ -110,6 +110,50 @@ def get_numbered_citation(insight_response: InsightResponseV2):
     }
 
 
+def get_step_status(step):
+    try:
+        if 'agent' in step:
+            return step['agent']['messages'][0].content[0]['text']
+        if 'query_node' in step:
+            result = step['query_node']['results'][0]
+            question = result['question']['question']
+            analysis = result.get("analysis", {})
+            items = analysis.items
+            return f"Found {len(items)} insights for question: {question}.."
+        if 'persist_analysis_node' in step:
+            return f"Saving result.."
+        if 'finalize_research' in step:
+            return f"Summarizing finding.."
+    except Exception as e:
+        # return f"Error: {str(e)}"
+        return "Thinking hard..."
+
+
+
+def stream_agent_response_ui_v2(agent: StructuredAgent, prompt):
+    """Stream the agent response with UI updates"""
+    # Create a placeholder for streaming output
+    info_placeholder = st.empty()
+
+    try:
+        for step in agent.stream_query(prompt):
+            print(f'UI STEP')
+            print(f'\n' + '-' * 100 + '\n')
+            print(f'\nUI Step: {step}')
+            status = get_step_status(step)
+            if status != None:  # skip some step
+                info_placeholder.info(f"{status}")
+
+        return agent.get_structured_output()
+
+    except Exception as e:
+        print(f'Error executing agent: {str(e)}')
+        import traceback
+        traceback.print_exc()
+        st.error(f"Error executing agent: {str(e)}")
+        return agent.get_structured_output()
+
+
 from slide_agents.flat_combined_graph import create_flat_combined_graph
 
 class AgentExecutor():
@@ -262,7 +306,8 @@ def create_slide_agent_dashboard():
 
     # Chat input
     if prompt := st.chat_input("Ask about your data (e.g., 'Show me rows where column > 100')..."):
-        st_process_user_prompt(st.session_state.agent, prompt)
+        import pdb; pdb.set_trace()
+        st_process_user_prompt(st.session_state.agent, prompt, stream_response_ui_func=stream_agent_response_ui_v2)
 
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
@@ -293,7 +338,7 @@ def create_slide_agent_dashboard():
     if 'query' in st.session_state and st.session_state.query:
         query_to_process = st.session_state.query
         st.session_state.query = None  # Clear it BEFORE processing
-        st_process_user_prompt(st.session_state.agent, query_to_process)
+        st_process_user_prompt(st.session_state.agent, query_to_process, stream_response_ui_func=stream_agent_response_ui_v2)
 
     if "active_reference" in st.session_state:
         show_reference(st.session_state.active_reference)
