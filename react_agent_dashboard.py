@@ -60,7 +60,54 @@ def pretty_print(step):
     print(f'-' * 100 + '\n')
 
 
+def get_step_status(step):
+    try:
+        if 'agent' in step:
+            return step['agent']['messages'][0].content[0]['text']
+        if 'query_node' in step:
+            result = step['query_node']['results'][0]
+            question = result['question']['question']
+            analysis = result.get("analysis", {})
+            items = analysis.items
+            return f"Found {len(items)} insights for question: {question}.."
+        if 'persist_analysis_node' in step:
+            return f"Saving result.."
+        if 'finalize_research' in step:
+            return f"Summarizing finding.."
+    except Exception as e:
+        # return f"Error: {str(e)}"
+        return "Thinking hard..."
+
+
+
 def stream_agent_response_ui(agent: StructuredAgent, prompt):
+    """Stream the agent response with UI updates"""
+
+    # Create a placeholder for streaming output
+    message_placeholder = st.empty()
+    tool_executions = []
+    info_placeholder = st.empty()
+
+    try:
+        for step in agent.stream_query(prompt):
+            print(f'UI STEP')
+            print(f'\n' + '-' * 100 + '\n')
+            print(f'\nUI Step: {step}')
+            status = get_step_status(step)
+            if status != None:  # skip some step
+                info_placeholder.info(f"{status}")
+
+        return agent.get_structured_output()
+
+    except Exception as e:
+        print(f'Error executing agent: {str(e)}')
+        import traceback
+        traceback.print_exc()
+        st.error(f"Error executing agent: {str(e)}")
+        return agent.get_structured_output()
+
+
+def stream_agent_response_ui_old(agent: StructuredAgent, prompt):
     """Stream the agent response with UI updates"""
 
     # Create a placeholder for streaming output
