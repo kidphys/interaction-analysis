@@ -142,7 +142,6 @@ class SlideStructuredAgent(StructuredAgent):
 
     def _initialize_agent(self):
         """Initialize the flat combined graph agent"""
-        from slide_agents.flat_combined_graph import create_flat_combined_graph
         memory = MemorySaver()
 
         # The flat graph handles model and prompt via config or defaults.

@@ -131,16 +131,17 @@ def format_research_results(results: List[Dict[str, Any]]) -> str:
         formatted += f"Question {idx}: {question}\n"
         formatted += f"Found {len(items)} insights.\n"
 
-        # Includes insight IDs for citation
-        insight_ids = []
-        for item in items:
-            # Handle both dict and object formats
-            item_id = item.get("id") if isinstance(item, dict) else getattr(item, "id", None)
-            if item_id:
-                insight_ids.append(str(item_id))
+        def extract_item(item):
+            try:
+                return {
+                    'id': item['id'],
+                    'insight': item['message']['content']
+                }
+            except Exception as e:
+                return 'No insight or error extracting insight'
 
-        if insight_ids:
-            formatted += f"Insight IDs: {', '.join(insight_ids)}\n"
+        item_texts = [extract_item(item) for item in items]
+        formatted += str(item_texts)
         formatted += "\n"
 
     return formatted
