@@ -167,6 +167,7 @@ def create_llm_node(model_name: str, system_prompt: str):
         pass # Actual implementation is handled by graph routing
 
     model_with_tools = model.bind_tools([research])
+    model_with_structured_output = model.with_structured_output(InsightResponseV2)
 
     def node(state: CombinedState) -> CombinedState:
         # Apply pre_model_hook if available
@@ -177,10 +178,38 @@ def create_llm_node(model_name: str, system_prompt: str):
         messages = [SystemMessage(content=system_prompt)]
         messages.extend(messages_to_use)
 
-        # Call the model
-        response = model_with_tools.invoke(messages)
+        # Check if we should output structured response directly
+        # This happens when the last message is a ToolMessage (research complete)
+        # and we haven't formatted yet
+        last_message = messages_to_use[-1] if messages_to_use else None
+        should_format_response = (
+            isinstance(last_message, ToolMessage) and
+            state.get("structured_response") is None
+        )
 
-        return {"messages": [response]}
+        if should_format_response:
+            # Output structured response directly from the conversation
+            structured_response = model_with_structured_output.invoke(messages)
+            # Also add a final AI message for completeness
+            final_ai_message = AIMessage(content="Analysis complete. Here are the insights.")
+            return {
+                "messages": [final_ai_message],
+                "structured_response": structured_response
+            }
+        else:
+            # Normal agent call with tool support
+            response = model_with_tools.invoke(messages)
+            # Check if the response has no tool calls - if so, format it
+            if (isinstance(response, AIMessage) and
+                (not hasattr(response, "tool_calls") or not response.tool_calls) and
+                state.get("structured_response") is None):
+                # No tool calls means we're done - format the response
+                structured_response = model_with_structured_output.invoke(messages + [response])
+                return {
+                    "messages": [response],
+                    "structured_response": structured_response
+                }
+            return {"messages": [response]}
 
     return node
 
@@ -189,9 +218,13 @@ def router(state: CombinedState) -> Literal["research", "respond", "end"]:
     """
     Router that decides what to do next based on the last message.
     """
+    # If we already have a structured response, we're done
+    if state.get("structured_response") is not None:
+        return "end"
+
     last_message = state["messages"][-1]
 
-    # If it's a tool message, continue to LLM
+    # If it's a tool message, continue to LLM (which will format response)
     if isinstance(last_message, ToolMessage):
         return "respond"
 
@@ -204,7 +237,7 @@ def router(state: CombinedState) -> Literal["research", "respond", "end"]:
                 if tool_call.get("name") == "research":
                     return "research"
 
-        # No tool calls, we're done
+        # No tool calls, we're done - agent will format response
         return "end"
 
     # If it's a human message, go to LLM first
@@ -253,17 +286,6 @@ def prepare_research_state(state: CombinedState) -> CombinedState:
     }
 
 
-def format_response_node(state: CombinedState, model_name: str) -> CombinedState:
-    """
-    Format the final response using InsightResponseV2 format.
-    """
-    model = init_chat_model(model_name, max_tokens=8096)
-    messages = state["messages"]
-    model_with_structured_output = model.with_structured_output(InsightResponseV2)
-    structured_response = model_with_structured_output.invoke(messages)
-    return {"structured_response": structured_response}
-
-
 def query_node_with_retry(state: CombinedState):
     try:
         return query_node(state)
@@ -308,9 +330,6 @@ def create_flat_combined_graph(
     # 4. Finalize Research (Convert results to ToolMessage)
     graph.add_node("finalize_research", finalize_research_node)
 
-    # 5. Format Response
-    graph.add_node("format_response", lambda state: format_response_node(state, model_name))
-
     # --- EDGES ---
 
     # Entry
@@ -323,7 +342,7 @@ def create_flat_combined_graph(
         {
             "research": "prepare_research",
             "respond": "agent",
-            "end": "format_response"
+            "end": END
         }
     )
 
@@ -343,11 +362,8 @@ def create_flat_combined_graph(
     # Persist -> Finalize
     graph.add_edge("persist_analysis_node", "finalize_research")
 
-    # Finalize -> Back to Agent
+    # Finalize -> Back to Agent (which will format response)
     graph.add_edge("finalize_research", "agent")
-
-    # End
-    graph.add_edge("format_response", END)
 
     return graph.compile(checkpointer=checkpointer)
 
