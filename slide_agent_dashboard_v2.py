@@ -3,7 +3,7 @@ This module provides a CSV data analysis agent which can run SQL queries on uplo
 CSV files using DuckDB.
 """
 import time
-from typing import List, Literal
+from typing import Any, Dict, List, Literal
 from typing import Union
 from langchain.chat_models import init_chat_model
 from langchain_core.messages import SystemMessage
@@ -15,6 +15,7 @@ import streamlit as st
 from langchain.tools import tool
 from react_agent_dashboard import display_visualization, st_process_user_prompt
 # from slide_agents.data_analyst_graph import create_graph as create_data_analyst_graph
+from slide_agents.analysis_repository import create_analysis_repository_from_duckdb_file
 from slide_agents.insight_repository import InsightRepository, create_repository_from_duckdb_file
 from slide_agents.message import InsightResponseV2, MessageWithCitation
 from slide_agents.query_node import InsightItem
@@ -36,8 +37,10 @@ system_prompt_template = base_system_prompt_template
 
 
 import pandas as pd
+import ast
+import json
 
-def display_insight_item(item: InsightItem):
+def display_insight_item(data: Dict):
     def _get_visual_item(item):
         if item.visualization:
             if item.visualization.type == "table":
@@ -53,10 +56,19 @@ def display_insight_item(item: InsightItem):
                     chart_type=item.visualization.chart_type,
                     title=item.visualization.title,
                 )
+    item = data['insight']
     visual_item = _get_visual_item(item)
     st.badge(item.id)
     st.markdown(item.message.content)
     display_visualization(visual_item)
+    st.header('Evidence')
+    sql = data['analysis'][0]['sql']
+
+    question = data['analysis'][0]['question']
+    st.markdown(question)
+    st.code(sql)
+    df = pd.DataFrame(ast.literal_eval(data['analysis'][0]['data']))
+    st.write(df)
 
 
 def insight_response_v2_to_insight_response(insight_response: InsightResponseV2, insight_repo: InsightRepository) -> InsightResponse:
@@ -205,8 +217,13 @@ def display_structured_response(response_content, insight_duckdb_file: str = "in
                     )
                 if selection:
                     insight_repo = create_repository_from_duckdb_file(insight_duckdb_file)
+                    analysis_repo = create_analysis_repository_from_duckdb_file(insight_duckdb_file)
+                    analysis = analysis_repo.load_by_insight_id(selection)
                     item = insight_repo.load(selection)
-                    st.session_state.active_reference = item
+                    st.session_state.active_reference = {
+                        'insight': item,
+                        'analysis': analysis
+                    }
             else:
                 st.markdown(f"💬{item.content}")
     elif isinstance(response_content, str):
@@ -215,7 +232,7 @@ def display_structured_response(response_content, insight_duckdb_file: str = "in
 
 
 @st.dialog("Reference Details")
-def show_reference(item: InsightItem):
+def show_reference(item: Dict[str, Any]):
     display_insight_item(item)
 
 

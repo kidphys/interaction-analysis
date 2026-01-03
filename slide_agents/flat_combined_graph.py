@@ -264,6 +264,13 @@ def format_response_node(state: CombinedState, model_name: str) -> CombinedState
     return {"structured_response": structured_response}
 
 
+def query_node_with_retry(state: CombinedState):
+    try:
+        return query_node(state)
+    except Exception as e:
+        return f"Error: {e}"
+
+
 # =========================
 # BUILD GRAPH
 # =========================

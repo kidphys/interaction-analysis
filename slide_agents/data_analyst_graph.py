@@ -16,6 +16,7 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.types import Send
 from data_analysis_graph import get_table_name_from_csv_path
 from slide_agents.insight_repository import InsightRepository
+from slide_agents.analysis_repository import AnalysisRepository
 from slide_agents.query_node import analyze_data, create_sql_query, get_table_schemas, query_db
 
 
@@ -40,6 +41,9 @@ class AnalysisState(TypedDict, total=False):
 
     # Insight duckdb file
     insight_duckdb_file: str
+
+    # User ID for analysis persistence
+    user_id: str
 
 
 models = [
@@ -71,6 +75,9 @@ def map_tasks_node(state: AnalysisState) -> AnalysisState:
         raise e
     print(f'\n Map Tasks node done')
     state["duckdb_file"] = filename
+    # Set insight_duckdb_file if not provided (use same file for both)
+    if "insight_duckdb_file" not in state:
+        state["insight_duckdb_file"] = filename
     return state
 
 
@@ -125,18 +132,33 @@ import json
 def persist_analysis_node(state: AnalysisState) -> AnalysisState:
     """
     Persist the `AnalysisState` to a file so that we can review the analysis later
+    Also updates the analysis repository with insight IDs after they are assigned
     """
     filename = state['name'] + '-analysis-' + '.json'
     conn = duckdb.connect(state['insight_duckdb_file'])
     repo = InsightRepository(conn)
+    analysis_repo = AnalysisRepository(conn)
+    user_id = state.get('user_id', 'default_user')
     try:
         with open(filename, 'w') as f:
             for result in state['results']:
+                # Save insights and set their IDs
                 for item in result['analysis'].items:
                     id = repo.save(item)
                     item.id = id
+
+                # Update the analysis in the repository with the new insight IDs
+                analysis_repo.save(
+                    question=result['question'],
+                    sql=result['sql'],
+                    data=result['data'],
+                    analysis=result['analysis'],
+                    user_id=user_id
+                )
+
                 result['analysis'] = result['analysis'].model_dump()
             json.dump(state, f, indent=2)
+        conn.close()
         return state
     except Exception as e:
         print(f'\n Persist analysis node error: {e}')
@@ -178,7 +200,9 @@ if __name__ == "__main__":
     state = {
         'name': 'answers_stats',
         'csv_paths': csv_paths,
-        'questions': questions
+        'questions': questions,
+        'user_id': 'test_user',
+        'insight_duckdb_file': 'answers_stats.duckdb'
     }
     g = create_graph()
     res = g.invoke(state)
