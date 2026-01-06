@@ -151,9 +151,9 @@ def format_research_results(results: List[Dict[str, Any]]) -> str:
 # AGENT NODES
 # =========================
 
-def create_llm_node(model_name: str, system_prompt: str):
+def create_llm_node(model_name: str, model_provider: str, system_prompt: str):
     """Create a node that calls the LLM with the current messages"""
-    model = init_chat_model(model_name, max_tokens=8096)
+    model = init_chat_model(model_name, max_tokens=8096, model_provider=model_provider)
 
     # Bind the research tool signature (LLM sees it as a tool)
     # We define the tool schema manually or use the function to get schema
@@ -298,7 +298,10 @@ def query_node_with_retry(state: CombinedState):
 # =========================
 
 def create_flat_combined_graph(
-    model_name: str = "anthropic:claude-sonnet-4-20250514",
+    # model_name: str = "claude-sonnet-4-20250514",
+    # model_provider: str = "anthropic",
+    model_name: str = "gpt-4o",
+    model_provider: str = "openai",
     system_prompt: str = None,
     csv_paths: List[str] = None,
     name: str = "answer_stats",
@@ -312,7 +315,7 @@ def create_flat_combined_graph(
     graph = StateGraph(CombinedState)
 
     # 1. Agent Node (LLM)
-    graph.add_node("agent", create_llm_node(model_name, system_prompt))
+    graph.add_node("agent", create_llm_node(model_name, model_provider=model_provider, system_prompt=system_prompt))
 
     # 2. Research Prep (Extract questions)
     graph.add_node("prepare_research", prepare_research_state)

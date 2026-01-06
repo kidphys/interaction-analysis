@@ -74,12 +74,54 @@ def load_datamart(state: SessionInsightState):
 
 def map_tasks(state: SessionInsightState):
     # Returns a list of Send objects to fan out to 'analyst' node
-    return [
+    sends = [
         Send("analyst", {"task": task, "duckdb_path": state['duckdb_path']})
         for task in TASKS
     ]
+    # To run Coach in parallel, it cannot depend on 'analyst' outputs yet.
+    # But Coach NEEDS insights from analysts.
+    # "Run coach node in parallel with analyst (1 analyst 1 coach)" implies
+    # each analyst might have a coach or coach runs while analysts run.
+    # However, Coach aggregates ALL insights. It CANNOT run in parallel with analysts if it needs their output.
+    # Unless the user means "Run A coach for EACH analyst"? "1 analyst 1 coach"?
+    # "1 analyst 1 coach" sounds like 1-to-1 mapping.
+    # But usually Coach summarizes everything.
+    # If the user means "Make the coach node run in parallel with analyst",
+    # and "1 analyst 1 coach", maybe they mean each analyst task also produces a coaching message?
+    # Or maybe they mean "run the single aggregation coach in parallel with analysts" (impossible if dependency exists).
 
-def analyst(state: AnalystInput):
+    # Let's re-read: "Make the coach node run in parallel with analyst (1 analyst 1 coach)"
+    # This likely means: For EACH analyst task, also run a coach task (or combined).
+    # But if Coach summarizes EVERYTHING, it must be after.
+    # If "1 analyst 1 coach", it implies fan-out to Coach as well?
+    # Or maybe the user wants: `load` -> `map` -> [`analyst_1`, `coach_1`], [`analyst_2`, `coach_2`], ...
+    # i.e., Coach is per-task?
+    # "recommendation is too vague... give revised version of Slide 9".
+    # This implies the Coach helps with specific slide recommendations.
+    # So "Coach" here might be a "Revision Specialist" for that specific task?
+    # If so, we can chain Analyst -> Coach per task.
+    # Structure: `load` -> map -> `analyst` -> `coach` -> `aggregate`.
+    # This would mean for each task, we analyze THEN coach (refine).
+    # THIS makes "1 analyst 1 coach" sense.
+
+    # So we change the edge: `map` -> `analyst`.
+    # `analyst` -> `coach` (linear chain per branch).
+    # `coach` -> `aggregate`.
+
+    # But previously `coach` was an aggregator.
+    # Now `coach` transforms the `SlideAnalysisResult`?
+    # Or adds `coaching_message` to it?
+    # The user also complains about recommendations being vague.
+
+    # Hypothesis: The user wants a per-task Coach that refines the Analyst's output.
+    # Let's assume this.
+
+    return [
+        Send("analyze_and_refine", {"task": task, "duckdb_path": state['duckdb_path']})
+        for task in TASKS
+    ]
+
+def analyze_and_refine(state: AnalystInput):
     task = state['task']
     duckdb_path = state['duckdb_path']
 
@@ -126,77 +168,124 @@ def analyst(state: AnalystInput):
 
     return {"insights": [result]}
 
-def coach(state: SessionInsightState):
-    insights = state['insights']
-    # Check completeness
-    if len(insights) < len(TASKS):
-         return {}
 
-    print(f"All {len(insights)} tasks complete. Running Coach...")
+# We need to pass the result from Analyst to Coach.
+# Standard LangGraph: Nodes receive State.
+# If we chain `analyst` -> `coach` inside a branch, we need a state that carries the intermediate result.
+# Analyst returns `{"insights": [result]}` which merges to global state.
+# But inside the branch, `analyst` Output is not automatically passed as Input to `coach` unless `coach` is part of the `Send` or strict sequence.
+# BUT `Send` targets a single Node.
+# If we want a sequence `analyst` -> `coach`, we can typically define a subgraph or change `analyst` to call `coach`?
+# OR we use `map_tasks` to send to a "worker_graph" (subgraph) which contains A -> C.
+# OR we make `analyst` return a distinct key/type that `coach` picks up?
+# But `insights` is a reducer.
 
-    # Prepare context
-    context_text = ""
-    for idx, insight in enumerate(insights):
-        context_text += f"\n--- Insight {insight.metadata.analysis_scope} ---\n"
-        if insight.interpretation:
-             for interp in insight.interpretation:
-                 context_text += f"Insight: {interp.insight}\n"
-        if insight.actionable_recommendations:
-            for rec in insight.actionable_recommendations:
-                context_text += f"Recommendation: {rec.recommendation}\n"
+# Simpler approach:
+# Modify `analyst` to NOT return to global `insights` immediately?
+# Or keep `analyst` behavior, but have `coach` run on the result?
+# If we use `Send("analyst", ...)` and add edge `analyst` -> `coach`.
+# `coach` will receive the output of `analyst` IF the graph is built that way?
+# No, nodes receive the State.
+# If `analyst` updates `insights`, then `coach` sees the global list?
+# BUT `coach` is running in parallel branches (1 per analyst).
+# Each `coach` instance needs to know WHICH insight to process.
+# This implies we need to pass the specific task/insight context.
 
-    # Call LLM
-    llm = ChatOpenAI(model="gpt-4o", temperature=0.7)
-    structured_llm = llm.with_structured_output(CoachingResult)
+# Let's define a SubState or Intermediate dict.
+# Actually, if we use `Send`, we can pass arbitrary state to the target node.
+# But `analyst` is already running.
+# If `analyst` finishes, we want `coach` to run on THAT SPECIFIC result.
+# So `analyst` should probably just call the LLM for coaching too?
+# Merging them into one node `analyst_and_coach`?
+# That violates "1 analyst 1 coach" (implies separation) but achieves the goal perfectly.
+# "Node" concept.
+# If we keep them specific nodes:
+# `analyst` -> returns `{"task": ..., "partial_result": ...}` -> `coach` -> returns `{"insights": ...}`.
+# This requires `analyst` to NOT return to `insights` reducer directly.
+# And we need a state definition that handles the flow.
+
+# Let's try merging for simplicity first?
+# "Make the coach node run in parallel with analyst (1 analyst 1 coach)"
+# This phrasing suggests distinct nodes. "1 analyst 1 coach" sounds like pairs.
+
+# Let's use `analyst` returning a temporary state that `coach` consumes.
+# But `Send` is from `map_tasks`.
+# Edge `analyst` -> `coach`.
+# `coach` needs to accept `AnalystInput` + `result`.
+# Let's define `CoachInput`.
+
+    llm = ChatOpenAI(model="gpt-4o", temperature=0)
+    structured_llm = llm.with_structured_output(SlideAnalysisResultBase)
 
     messages = [
-        SystemMessage(content=COACH_PROMPT),
-        HumanMessage(content=f"Here are the analysis results from the session:\n{context_text}")
+        SystemMessage(content=SYSTEM_PROMPT),
+        SystemMessage(content=f"Task: {task.analysis_prompt}"),
+        HumanMessage(content=f"Here is the data:\n{data_str}")
     ]
 
-    coaching_msg = ""
     try:
-        result = structured_llm.invoke(messages)
-        coaching_msg = result['message']
+        draft_result = structured_llm.invoke(messages)
     except Exception as e:
-        print(f"Error in Coach: {e}")
+        print(f"Error in Analyst {task.id}: {e}")
+        return {"insights": []}
 
-    return {"coaching_message": coaching_msg}
+    if not draft_result:
+        return {"insights": []}
+
+    # --- Phase 2: Coach (Refinement) ---
+    print(f"Coaching (Refining) task {task.id}...")
+
+    # Use a slightly higher temperature for creative improvements
+    coach_llm = ChatOpenAI(model="gpt-4o", temperature=0.7)
+    structured_coach_llm = coach_llm.with_structured_output(SlideAnalysisResultBase)
+
+    refinement_prompt = f"""
+    {COACH_PROMPT}
+
+    Review the following analysis draft.
+    Improve the recommendations to be VERY specific and concrete.
+    If a recommendation suggests changing content (like a question or title), provide the EXACT new wording.
+    Examples:
+    - Instead of "Critique the question", say "Change question to 'What is the capital of France?'"
+    - Instead of "Reorder slides", say "Move Slide 5 to position 2".
+
+    Maintain the JSON structure.
+    """
+
+    draft_json = draft_result.model_dump_json()
+
+    coach_messages = [
+        SystemMessage(content=refinement_prompt),
+        # HumanMessage(content=f"Original Data Context (Summary): {str(data_source)[:500]}..."),
+        HumanMessage(content=f"Draft Analysis:\n{draft_json}")
+    ]
+
+    try:
+        refined_result = structured_coach_llm.invoke(coach_messages)
+        final_base = refined_result if refined_result else draft_result
+    except Exception as e:
+        print(f"Error in Coach Refinement {task.id}: {e}")
+        final_base = draft_result
+
+    # Construct final object with source data
+    # coaching_message is now part of Base, so it will be carried over from final_base.model_dump()
+    result = SlideAnalysisResult(
+         **final_base.model_dump(),
+         source_data=data_source
+    )
+
+    return {"insights": [result]}
 
 def aggregate_insights(state: SessionInsightState):
     insights = state['insights']
-    coaching_message = state.get('coaching_message')
     presentation_id = state['presentation_id']
-
-    # Prune if this node was called by a partial update but not the final one?
-    # Actually, wire: analyst -> coach. coach checks completion.
-    # If not complete, coach returns {}. Then graph continues?
-    # Edge: coach -> aggregate_insights.
-    # If coach returns, it goes to aggregate.
-    # We should perform the same check in aggregate or only run aggregate if coach has message?
-    # The logic used "conditional" return {} to seemingly stop.
-    # But standard LangGraph: if node returns, it continues to next edge.
-    # We need conditional edge from Coach!
-
-    if len(insights) < len(TASKS):
-        return {}
 
     print(f"Aggregating {len(insights)} insights...")
 
     output_path = f"session_insight_{presentation_id}_results.json"
 
-    # Convert Pydantic models to dicts and attach coaching message to the FIRST one (or wrapper?)
-    # User request "1 postive and encouraging messages for the presenter."
-    # We can attach it to the JSON structure if we change it to be a dict wrapper, or attach to first item.
-    # The current output is List[SlideAnalysisResult].
-    # Let's attach to ALL items for consistency, or just the first.
-
-    insights_data = []
-    for i in insights:
-        data = i.model_dump()
-        if coaching_message:
-            data['coaching_message'] = coaching_message
-        insights_data.append(data)
+    # Convert Pydantic models to dicts
+    insights_data = [i.model_dump() for i in insights]
 
     with open(output_path, "w") as f:
         json.dump(insights_data, f, indent=2, default=str)
@@ -213,8 +302,7 @@ def create_session_insight_graph():
     workflow = StateGraph(SessionInsightState)
 
     workflow.add_node("load_datamart", load_datamart)
-    workflow.add_node("analyst", analyst)
-    workflow.add_node("coach", coach)
+    workflow.add_node("analyze_and_refine", analyze_and_refine)
     workflow.add_node("aggregate_insights", aggregate_insights)
 
     workflow.set_entry_point("load_datamart")
@@ -222,11 +310,10 @@ def create_session_insight_graph():
     workflow.add_conditional_edges(
         "load_datamart",
         map_tasks,
-        ["analyst"]
+        ["analyze_and_refine"]
     )
 
-    workflow.add_edge("analyst", "coach")
-    workflow.add_edge("coach", "aggregate_insights")
+    workflow.add_edge("analyze_and_refine", "aggregate_insights")
     workflow.add_edge("aggregate_insights", END)
 
     return workflow.compile()

@@ -60,7 +60,8 @@ def test_graph_execution():
                 # COACH_PROMPT messages have specific content.
                 messages = args[0]
                 if any("supportive and encouraging presentation coach" in m.content for m in messages if hasattr(m, 'content')):
-                     return dummy_coaching
+                     # Refinement returns SlideAnalysisResultBase too now!
+                     return dummy_analysis
                 return dummy_analysis
 
             mock_structured_llm.invoke.side_effect = side_effect

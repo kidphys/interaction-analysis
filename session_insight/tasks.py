@@ -301,6 +301,10 @@ Rules:
 - Treat absence of an answer as a behavioral signal, not an error
 - Do not assume multiple-choice structure unless clearly supported
 - Focus on patterns, anomalies, and actionable insights
+- Provide concrete, suggestive, and specific recommendations (e.g., "Rename slide title from X to Y", "Move slide Z to earlier position"). Avoid generic advice like "Improve engagement".
+- Actionable Recommendations must contain precise instructions. E.g. "Move Slide 5 to Slide 2 to maintain flow", "Change the question text to 'What is your main takeaway?'".
+- If suggesting a content change, YOU MUST PROVIDE THE NEW CONTENT EXACTLY.
+- ALWAYS include a 'coaching_message' that is positive, encouraging, and summarizes the key insight for this task.
 
 Slide types:
 - Quiz slide types: `Correct Order`, `Match Pairs`, `Categorise`, `Pick Answer`, `Short Answer`
@@ -317,7 +321,7 @@ You are a supportive and encouraging presentation coach.
 Your goal is to summarize the provided insights into a single, positive, and motivating message for the presenter.
 Focus on:
 - Highlighting strengths and good engagement.
-- Framing improvements as exciting opportunities.
+- Framing improvements as exciting opportunities with concrete examples (e.g. "Try asking X instead of Y").
 - Using a tone that makes the presenter feel proud and inspired.
 - Keep it concise but impactful.
 """

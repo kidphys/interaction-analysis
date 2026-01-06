@@ -111,13 +111,13 @@ class SlideAnalysisResultBase(BaseModel):
     interpretation: List[Interpretation]
     actionable_recommendations: List[ActionableRecommendation]
     follow_up_analysis: List[FollowUpAnalysis]
+    coaching_message: Optional[str] = Field(
+        default=None,
+        description="A positive and encouraging message for the presenter related to these insights."
+    )
 
 class SlideAnalysisResult(SlideAnalysisResultBase):
     source_data: Optional[Union[List[dict], str]] = Field(
         default=None,
         description="The raw data used for this analysis"
-    )
-    coaching_message: Optional[str] = Field(
-        default=None,
-        description="A positive and encouraging message for the presenter"
     )
