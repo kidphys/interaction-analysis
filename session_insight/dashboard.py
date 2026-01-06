@@ -316,14 +316,32 @@ def display_observations(results: List[Dict[str, Any]]):
 
 
 def display_insights(results: List[Dict[str, Any]]):
-    """Display interpretations and insights."""
+    """Display interpretations and insights with area-specific metadata."""
     st.header("💡 Insights & Interpretations")
 
     for idx, result in enumerate(results):
-        scope = result.get('metadata', {}).get('analysis_scope', 'Unknown')
+        metadata = result.get('metadata', {})
+        scope = metadata.get('analysis_scope', 'Unknown').replace('_', ' ').title()
+        confidence = metadata.get('confidence_level', 'Unknown')
+        assumptions = metadata.get('assumptions_applied', [])
 
         if 'interpretation' in result and result['interpretation']:
-            with st.expander(f"📊 {scope.title()} Analysis", expanded=idx == 0):
+            with st.expander(f"📊 {scope} Analysis Logic & Insights", expanded=idx == 0):
+                # Area Metadata section
+                st.markdown("#### ⚙️ Analysis Parameters")
+                col1, col2 = st.columns([1, 2])
+                with col1:
+                    confidence_color = {'high': '🟢', 'medium': '🟡', 'low': '🔴'}.get(confidence, '⚪')
+                    st.markdown(f"**Confidence:** {confidence_color} {confidence.title()}")
+                with col2:
+                    if assumptions:
+                        st.markdown("**Assumptions Applied:**")
+                        for a in assumptions:
+                            st.markdown(f"- {a}")
+
+                st.markdown("---")
+
+                # Insights
                 for interp in result['interpretation']:
                     st.markdown(f"""
                     <div class="insight-card">
@@ -432,6 +450,30 @@ def display_metadata_summary(results: List[Dict[str, Any]]):
         if count > 0:
             emoji = {'high': '🟢', 'medium': '🟡', 'low': '🔴'}
             st.sidebar.markdown(f"{emoji[level]} {level.title()}: {count}")
+
+
+def display_source_data(results: List[Dict[str, Any]]):
+    """Display the raw source data for each analysis area in table format."""
+    st.header("🗄️ Raw Source Data Explorer")
+    st.markdown("View the exact data used for each specific analysis scope.")
+
+    for idx, result in enumerate(results):
+        scope = result.get('metadata', {}).get('analysis_scope', 'Unknown').replace('_', ' ').title()
+        source_data = result.get('source_data')
+
+        with st.expander(f"📁 Source Data: {scope}", expanded=False):
+            if not source_data:
+                st.info("No source data available for this analysis.")
+            elif isinstance(source_data, list):
+                if len(source_data) > 0:
+                    df_source = pd.DataFrame(source_data)
+                    st.dataframe(df_source, use_container_width=True, hide_index=True)
+                else:
+                    st.info("Source data list is empty.")
+            elif isinstance(source_data, str):
+                st.text_area("Raw Data Output", source_data, height=300)
+            else:
+                st.write(source_data)
 
 
 def run_graph_analysis(presentation_id: str, progress_callback=None) -> str:
@@ -642,12 +684,13 @@ def main():
     df = extract_slide_data(results)
 
     # Main content tabs
-    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
         "📈 Overview",
         "🔍 Observations",
         "💡 Insights",
         "🎯 Recommendations",
-        "🌟 Coaching"
+        "🌟 Coaching",
+        "🗄️ Source Data"
     ])
 
     with tab1:
@@ -727,6 +770,9 @@ def main():
 
     with tab5:
         display_coaching_messages(results)
+
+    with tab6:
+        display_source_data(results)
 
     # Footer
     st.markdown("---")
