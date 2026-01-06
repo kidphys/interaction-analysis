@@ -114,9 +114,29 @@ def extract_slide_data(results: List[Dict[str, Any]]) -> pd.DataFrame:
 
     if slide_data:
         df = pd.DataFrame(slide_data)
-        # Remove duplicates based on slide_index
+
+        # Merge data from different analyses for the same slide
         if 'slide_index' in df.columns:
-            df = df.drop_duplicates(subset=['slide_index'])
+            # Group by slide_index and aggregate
+            agg_dict = {}
+
+            # For each column, determine how to aggregate
+            for col in df.columns:
+                if col == 'slide_index':
+                    continue
+                elif col in ['slide_title', 'slide_type']:
+                    agg_dict[col] = 'first'  # Take first non-null value
+                elif col in ['participants', 'total_responses', 'distinct_responses', 'responses', 'accuracy', 'answer_variability']:
+                    agg_dict[col] = 'max'  # Take max to get the most complete data
+                else:
+                    agg_dict[col] = 'first'
+
+            # Group and aggregate
+            df = df.groupby('slide_index', as_index=False).agg(agg_dict)
+
+            # Sort by slide_index
+            df = df.sort_values('slide_index').reset_index(drop=True)
+
         return df
     return pd.DataFrame()
 
