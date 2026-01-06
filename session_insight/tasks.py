@@ -284,7 +284,7 @@ JOIN aha_report_v5.dim_participants dp
   ON fa.participant_id = dp.participant_id
 WHERE fa.presentation_id = {presentation_id}
   AND fa.deleted IS FALSE
-  AND dq.presentation_id = {presentation_id};
+  AND dq.presentation_id = {presentation_id}
 """
 
 SYSTEM_PROMPT = """
@@ -301,7 +301,7 @@ Rules:
 - Treat absence of an answer as a behavioral signal, not an error
 - Do not assume multiple-choice structure unless clearly supported
 - Focus on patterns, anomalies, and actionable insights
-- Provide concrete, suggestive, and specific recommendations (e.g., "Rename slide title from X to Y", "Move slide Z to earlier position"). Avoid generic advice like "Improve engagement".
+- It's critical that you should provide concrete, suggestive, and specific recommendations (e.g., "Rename slide title from X to Y", "Move slide Z to earlier position"). Avoid generic advice like "Improve engagement".
 - Actionable Recommendations must contain precise instructions. E.g. "Move Slide 5 to Slide 2 to maintain flow", "Change the question text to 'What is your main takeaway?'".
 - If suggesting a content change, YOU MUST PROVIDE THE NEW CONTENT EXACTLY.
 - ALWAYS include a 'coaching_message' that is positive, encouraging, and summarizes the key insight for this task.
