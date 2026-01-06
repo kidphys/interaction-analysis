@@ -9,7 +9,7 @@ class AnalysisTask(NamedTuple):
 TASKS = [
     AnalysisTask(
         id="Q1.1",
-        category="PARTICIPATION & FLOW",
+        category="Participant & Flow",
         sql_template="""
             SELECT
               slide_index,
@@ -38,7 +38,7 @@ TASKS = [
     ),
     AnalysisTask(
         id="Q1.2",
-        category="PARTICIPATION & FLOW",
+        category="Slide Type Engagement",
         sql_template="""
             SELECT
               slide_type,
@@ -61,7 +61,7 @@ TASKS = [
     ),
     AnalysisTask(
         id="Q2.2",
-        category="QUIZ PERFORMANCE",
+        category="Quiz Performance",
         sql_template="""
             SELECT
               slide_type,
@@ -86,7 +86,7 @@ TASKS = [
     ),
     AnalysisTask(
         id="Q3.1",
-        category="FREE-TEXT EXPRESSION QUALITY",
+        category="Answer Diversity",
         sql_template="""
             SELECT
               slide_index,
@@ -116,7 +116,7 @@ TASKS = [
     ),
     AnalysisTask(
         id="Q3.2",
-        category="FREE-TEXT EXPRESSION QUALITY",
+        category="Answer Text Sentiment",
         sql_template="""
             SELECT
               slide_index,
@@ -146,18 +146,19 @@ TASKS = [
     ),
     AnalysisTask(
         id="Q4.1",
-        category="SLIDE HEALTH & QUALITY",
+        category="Slide Health",
         sql_template="""
             SELECT
               slide_index,
               slide_title,
               slide_type,
+              slide_category,
               COUNT(DISTINCT participant_id) AS participants,
               COUNT(*) AS responses,
               AVG(CASE WHEN correct THEN 1 ELSE 0 END) AS accuracy,
               COUNT(DISTINCT answer_text) AS answer_variability
             FROM mart
-            GROUP BY slide_index, slide_title, slide_type;
+            GROUP BY slide_index, slide_title, slide_type, slide_category;
         """,
         analysis_prompt="""
             Evaluate slide health using metrics appropriate to each slide type.
@@ -180,7 +181,7 @@ TASKS = [
     ),
     AnalysisTask(
         id="Q5.1",
-        category="SESSION FLOW & FATIGUE",
+        category="Session Flow & Fatigue",
         sql_template="""
             SELECT
               slide_index,
@@ -208,15 +209,16 @@ TASKS = [
     ),
     AnalysisTask(
         id="Q6.1",
-        category="PARTICIPANT BEHAVIOR",
+        category="Participant Performance",
         sql_template="""
             SELECT
               participant_id,
               participant_name,
               COUNT(*) AS responses,
-              AVG(CASE WHEN correct THEN 1 ELSE 0 END) AS accuracy
+              AVG(CASE WHEN correct IS TRUE THEN 1.0 ELSE 0.0 END) AS accuracy
             FROM mart
-            GROUP BY participant_id, participant_name;
+            where slide_category = 'Quiz' AND id IS NOT null
+            GROUP by participant_id, participant_name
         """,
         analysis_prompt="""
             Analyze participant engagement and performance.
@@ -236,15 +238,16 @@ TASKS = [
     ),
     AnalysisTask(
         id="Q6.2",
-        category="PARTICIPANT BEHAVIOR",
+        category="Participant Interaction",
         sql_template="""
             SELECT
               participant_id,
               participant_name,
               slide_type,
               COUNT(*) AS responses,
-              AVG(CASE WHEN correct THEN 1 ELSE 0 END) AS accuracy
+              AVG(CASE WHEN correct IS TRUE THEN 1.0 ELSE 0.0 END) AS accuracy
             FROM mart
+            where slide_category = 'Quiz' AND id IS NOT null
             GROUP BY participant_id, participant_name, slide_type;
         """,
         analysis_prompt="""
@@ -262,29 +265,57 @@ TASKS = [
 ]
 
 MART_SQL = """
+WITH slides AS (
+  SELECT
+    dq.slide_id,
+    dq.slide_title,
+    dq.slide_type,
+    dq.slide_order,
+    ROW_NUMBER() OVER (
+      ORDER BY dq.slide_order NULLS LAST, dq.slide_id
+    ) AS slide_index
+  FROM aha_report_v5.dim_questions dq
+  WHERE dq.presentation_id = {presentation_id}
+    AND deleted IS FALSE
+),
+fa_filtered AS (
+  SELECT *
+  FROM aha_report_v5.fact_answers2
+  WHERE presentation_id = {presentation_id}
+    AND deleted IS FALSE
+),
+mart as (
 SELECT
     fa.id,
-    fa.slide_id,
+    s.slide_id,
     fa.participant_id,
-    dp.name as participant_name,
+    dp.name AS participant_name,
     fa.createdat,
     fa.correct,
     fa.is_partially_correct,
     fa.answer_time_seconds,
     fa.answer_timeout,
-    fa.submitted_answer_text as answer_text,
-    fa.slide_type,
-    dq.slide_title,
-    dq.slide_order,
-    DENSE_RANK() OVER (ORDER BY dq.slide_order) AS slide_index
-FROM aha_report_v5.fact_answers2 fa
-JOIN aha_report_v5.dim_questions dq
-  ON fa.slide_id = dq.slide_id
-JOIN aha_report_v5.dim_participants dp
-  ON fa.participant_id = dp.participant_id
-WHERE fa.presentation_id = {presentation_id}
-  AND fa.deleted IS FALSE
-  AND dq.presentation_id = {presentation_id}
+    fa.submitted_answer_text AS answer_text,
+    COALESCE(fa.slide_type, s.slide_type) AS slide_type,
+    s.slide_title,
+    s.slide_order,
+    s.slide_index,
+    CASE
+      WHEN COALESCE(fa.slide_type, s.slide_type) IN (
+        'Correct Order','Match Pairs','Categorise','Pick Answer','Short Answer'
+      ) THEN 'Quiz'
+      WHEN COALESCE(fa.slide_type, s.slide_type) IN (
+        'Word Cloud','Open Ended','Brainstorm','Scales','Poll'
+      ) THEN 'Non-Quiz'
+      ELSE 'Unknown'
+    END AS slide_category
+  FROM slides s
+  LEFT JOIN fa_filtered fa
+    ON fa.slide_id = s.slide_id
+  LEFT JOIN aha_report_v5.dim_participants dp
+    ON fa.participant_id = dp.participant_id
+    )
+    SELECT * FROM mart WHERE slide_category != 'Unknown' -- filter out non-interactive slides
 """
 
 SYSTEM_PROMPT = """
@@ -308,7 +339,7 @@ Rules:
 
 Slide types:
 - Quiz slide types: `Correct Order`, `Match Pairs`, `Categorise`, `Pick Answer`, `Short Answer`
-- Non-quiz slide types: `Word Cloud`, `Open Ended`, `Brainstorm`, `Scales`, `Poll`
+- Non-quiz slide types: `Word Cloud`, `Open Ended`, `Brainstorm`, `Scales`, `Poll`. Do not analyze accuracy for these slide types.
 
 Tones:
 - Playful yet scientific

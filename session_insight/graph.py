@@ -56,7 +56,7 @@ def load_datamart(state: SessionInsightState):
     except Exception as e:
         print(f"Error fetching from Redshift: {e}")
         # Build an empty DF to allow testing if Redshift fails/mocking
-        df = pd.DataFrame(columns=["id", "slide_id", "participant_id", "createdat", "correct", "slide_type", "slide_title", "slide_order", "slide_index", "answer_text"])
+        df = pd.DataFrame(columns=["id", "slide_id", "participant_id", "createdat", "correct", "slide_type", "slide_title", "slide_order", "slide_category", "slide_index", "answer_text"])
 
     # 2. Save to DuckDB
     # Use a unique path
@@ -67,17 +67,32 @@ def load_datamart(state: SessionInsightState):
         os.remove(db_path)
 
     con = duckdb.connect(db_path)
-    con.execute("CREATE TABLE mart AS SELECT * FROM df")
-    con.close()
+    try:
+        # IMPORTANT: register the pandas DF so SQL can read it
+        con.register("df", df)
+
+        # Replace table every run so it's always "updated"
+        con.execute("CREATE OR REPLACE TABLE mart AS SELECT * FROM df")
+
+        # Verify persistence/content
+        count = con.execute("SELECT COUNT(*) FROM mart").fetchone()[0]
+        print(f"DuckDB saved: {count} rows into {db_path}")
+    finally:
+        # Cleanup
+        try:
+            con.unregister("df")
+        except Exception:
+            pass
+        con.close()
 
     return {"duckdb_path": db_path, "insights": []}
 
 def map_tasks(state: SessionInsightState):
     # Returns a list of Send objects to fan out to 'analyst' node
-    sends = [
-        Send("analyst", {"task": task, "duckdb_path": state['duckdb_path']})
-        for task in TASKS
-    ]
+    # sends = [
+    #     Send("analyst", {"task": task, "duckdb_path": state['duckdb_path']})
+    #     for task in TASKS
+    # ]
     # To run Coach in parallel, it cannot depend on 'analyst' outputs yet.
     # But Coach NEEDS insights from analysts.
     # "Run coach node in parallel with analyst (1 analyst 1 coach)" implies
@@ -135,7 +150,7 @@ def analyze_and_refine(state: AnalystInput):
         data_str = df.to_csv(index=False)
         data_source = df.to_dict(orient='records')
     except Exception as e:
-        print(f"Error executing SQL for task {task.id}: {e}")
+        print(f"Error executing SQL for task {task.id}: {e}\nSQL: {task.sql_template}")
         data_str = "Error retrieving data."
         data_source = f"Error: {e}"
     finally:
@@ -159,6 +174,7 @@ def analyze_and_refine(state: AnalystInput):
                  **base_result.model_dump(),
                  source_data=data_source
              )
+             result.metadata.analysis_scope = task.category
         else:
             return {"insights": []}
 

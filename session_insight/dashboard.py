@@ -54,6 +54,14 @@ st.markdown("""
         margin: 10px 0;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
+    .coaching-card {
+        background-color: #f0f7ff;
+        padding: 20px;
+        border-radius: 10px;
+        border-left: 5px solid #3498db;
+        margin-bottom: 25px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
     .recommendation-card {
         background-color: #e8f4f8;
         padding: 15px;
@@ -247,7 +255,7 @@ def create_slide_type_distribution(df: pd.DataFrame) -> go.Figure:
 
 def create_diversity_chart(df: pd.DataFrame) -> go.Figure:
     """Create a chart showing response diversity."""
-    if df.empty or 'distinct_responses' not in df.columns:
+    if df.empty or 'distinct_responses' not in df.columns or 'total_responses' not in df.columns:
         return None
 
     df_filtered = df[df['total_responses'] > 0].copy()
@@ -284,6 +292,104 @@ def create_diversity_chart(df: pd.DataFrame) -> go.Figure:
     )
 
     return fig
+
+
+def display_scope_metrics(result: Dict[str, Any]):
+    """Display metadata metrics and coaching message for a single scope analyze."""
+    metadata = result.get('metadata', {})
+    confidence = metadata.get('confidence_level', 'Unknown')
+    assumptions = metadata.get('assumptions_applied', [])
+    coaching_message = result.get('coaching_message')
+
+    # Coaching Message first for engagement
+    if coaching_message:
+        st.markdown(f"""
+        <div class="coaching-card">
+            <h4>🌟 Expert Feedback</h4>
+            <p style="font-style: italic; font-size: 1.1em;">"{coaching_message}"</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+    st.markdown("#### ⚙️ Analysis Parameters")
+    col1, col2 = st.columns([1, 2])
+    with col1:
+        confidence_color = {'high': '🟢', 'medium': '🟡', 'low': '🔴'}.get(confidence, '⚪')
+        st.markdown(f"**Confidence:** {confidence_color} {confidence.title()}")
+    with col2:
+        if assumptions:
+            st.markdown("**Assumptions Applied:**")
+            for a in assumptions:
+                st.markdown(f"- {a}")
+    st.markdown("---")
+
+
+def display_observations_for_scope(observations: List[Dict[str, Any]]):
+    """Display key observations for a specific scope."""
+    if not observations:
+        return
+
+    st.subheader("🔍 Key Observations")
+    severity_order = {'high': 0, 'medium': 1, 'low': 2}
+    sorted_obs = sorted(observations, key=lambda x: severity_order.get(x.get('severity', 'low'), 3))
+
+    for obs in sorted_obs:
+        severity = obs.get('severity', 'low')
+        severity_emoji = {'high': '🔴', 'medium': '🟡', 'low': '🟢'}
+
+        st.markdown(f"""
+        <div class="observation-card">
+            <h4>{severity_emoji.get(severity, '⚪')} {obs.get('observation', 'N/A')}</h4>
+            <p><strong>Evidence:</strong> {obs.get('evidence', 'N/A')}</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+
+def display_insights_for_scope(insights: List[Dict[str, Any]]):
+    """Display interpretations for a specific scope."""
+    if not insights:
+        return
+
+    st.subheader("💡 Insights & Interpretations")
+    for interp in insights:
+        st.markdown(f"""
+        <div class="insight-card">
+            <h4>💡 {interp.get('insight', 'N/A')}</h4>
+            <p><strong>Explanation:</strong> {interp.get('explanation', 'N/A')}</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        if interp.get('alternative_explanations'):
+            with st.expander("Show Alternative Explanations"):
+                for alt in interp['alternative_explanations']:
+                    st.markdown(f"- {alt}")
+
+
+def display_recommendations_for_scope(recommendations: List[Dict[str, Any]]):
+    """Display recommendations for a specific scope."""
+    if not recommendations:
+        return
+
+    st.subheader("🎯 Actionable Recommendations")
+    priority_order = {'high': 0, 'medium': 1, 'low': 2}
+    sorted_recs = sorted(recommendations, key=lambda x: priority_order.get(x.get('priority', 'low'), 3))
+
+    for rec in sorted_recs:
+        display_recommendation_card(rec)
+
+
+def display_source_data_for_scope(source_data: Any):
+    """Display source data for a specific scope."""
+    if not source_data:
+        return
+
+    with st.expander("🗄️ View Raw Source Data"):
+        if isinstance(source_data, list) and len(source_data) > 0:
+            df_source = pd.DataFrame(source_data)
+            st.dataframe(df_source, use_container_width=True, hide_index=True)
+        elif isinstance(source_data, str):
+            st.code(source_data)
+        else:
+            st.write(source_data)
 
 
 def display_observations(results: List[Dict[str, Any]]):
@@ -431,49 +537,35 @@ def display_coaching_messages(results: List[Dict[str, Any]]):
 
 
 def display_metadata_summary(results: List[Dict[str, Any]]):
-    """Display metadata summary."""
+    """Display metadata summary in sidebar."""
     st.sidebar.header("📋 Analysis Metadata")
 
     total_analyses = len(results)
-    scopes = [r.get('metadata', {}).get('analysis_scope', 'Unknown') for r in results]
-    confidence_levels = [r.get('metadata', {}).get('confidence_level', 'Unknown') for r in results]
+    st.sidebar.metric("Total Analysis Scopes", total_analyses)
 
-    st.sidebar.metric("Total Analyses", total_analyses)
-    st.sidebar.markdown("**Analysis Scopes:**")
-    for scope in set(scopes):
-        count = scopes.count(scope)
-        st.sidebar.markdown(f"- {scope.title()}: {count}")
-
-    st.sidebar.markdown("**Confidence Levels:**")
-    for level in ['high', 'medium', 'low']:
-        count = confidence_levels.count(level)
-        if count > 0:
-            emoji = {'high': '🟢', 'medium': '🟡', 'low': '🔴'}
-            st.sidebar.markdown(f"{emoji[level]} {level.title()}: {count}")
+    st.sidebar.markdown("**Included Scopes:**")
+    for r in results:
+        scope_id = r.get('metadata', {}).get('analysis_scope', 'Unknown')
+        scope_name = get_human_friendly_scope_name(scope_id)
+        st.sidebar.markdown(f"- {scope_name}")
 
 
-def display_source_data(results: List[Dict[str, Any]]):
-    """Display the raw source data for each analysis area in table format."""
-    st.header("🗄️ Raw Source Data Explorer")
-    st.markdown("View the exact data used for each specific analysis scope.")
+def get_human_friendly_scope_name(scope_id: str) -> str:
+    """Map raw scope IDs to human friendly names from specs."""
+    mapping = {
+        "participation": "Engagement & Flow",
+        "accuracy": "Knowledge & Accuracy",
+        "free_text": "Audience Answer",
+        "participation, accuracy, semantic richness": "Slide Health & Quality",
+        "session_flow": "Session Pacing",
+        "participant_behavior": "Participant Insights"
+    }
+    # Handle multiple comma separated scopes if any
+    if "," in scope_id and scope_id not in mapping:
+        parts = [mapping.get(p.strip(), p.strip().title()) for p in scope_id.split(",")]
+        return " & ".join(parts)
 
-    for idx, result in enumerate(results):
-        scope = result.get('metadata', {}).get('analysis_scope', 'Unknown').replace('_', ' ').title()
-        source_data = result.get('source_data')
-
-        with st.expander(f"📁 Source Data: {scope}", expanded=False):
-            if not source_data:
-                st.info("No source data available for this analysis.")
-            elif isinstance(source_data, list):
-                if len(source_data) > 0:
-                    df_source = pd.DataFrame(source_data)
-                    st.dataframe(df_source, use_container_width=True, hide_index=True)
-                else:
-                    st.info("Source data list is empty.")
-            elif isinstance(source_data, str):
-                st.text_area("Raw Data Output", source_data, height=300)
-            else:
-                st.write(source_data)
+    return mapping.get(scope_id, scope_id.replace('_', ' ').title())
 
 
 def run_graph_analysis(presentation_id: str, progress_callback=None) -> str:
@@ -669,11 +761,15 @@ def main():
         3. View the analysis
 
         ### The dashboard provides:
-        - 📊 Interactive charts for participation, accuracy, and diversity
-        - 🔍 Key observations with severity indicators
-        - 💡 Detailed insights and interpretations
-        - 🎯 Prioritized actionable recommendations
-        - 🌟 Encouraging coaching messages
+        - **📈 Overview**: High-level session metrics and comparative charts.
+        - **🎯 Scope Tabs**: Dedicated analysis for **Participation**, **Accuracy**, and **Diversity** (Free Text).
+        - **🌟 Coaching Summary**: Aggregated feedback and motivational messages.
+
+        Within each scope tab, you will find:
+        - 🔍 **Key Observations**: Findings with evidence.
+        - 💡 **Insights**: Detailed interpretations.
+        - 🎯 **Recommendations**: Specific actions to take.
+        - 🗄️ **Raw Source Data**: The data table used for that specific analysis.
         """)
         return
 
@@ -683,17 +779,19 @@ def main():
     # Extract slide data
     df = extract_slide_data(results)
 
-    # Main content tabs
-    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-        "📈 Overview",
-        "🔍 Observations",
-        "💡 Insights",
-        "🎯 Recommendations",
-        "🌟 Coaching",
-        "🗄️ Source Data"
-    ])
+    # Main content tabs - Reorganized by Scope with human friendly names
+    scope_names = ["📈 Overview"]
+    for r in results:
+        scope_id = r.get('metadata', {}).get('analysis_scope', 'Unknown')
+        # scope_name = get_human_friendly_scope_name(scope_id)
+        scope_name = scope_id
+        scope_names.append(f"🎯 {scope_name}")
+    scope_names.append("🌟 Final Coaching")
 
-    with tab1:
+    tabs = st.tabs(scope_names)
+
+    # 1. Overview Tab
+    with tabs[0]:
         st.header("📈 Session Overview")
 
         # Key metrics
@@ -744,7 +842,7 @@ def main():
 
         # Slide details table
         if not df.empty:
-            st.subheader("📋 Slide Details")
+            st.subheader("📋 Complete Slide Details")
             display_df = df.copy()
 
             # Format accuracy as percentage
@@ -759,20 +857,26 @@ def main():
                 hide_index=True
             )
 
-    with tab2:
-        display_observations(results)
+    # 2. Scope-specific Tabs
+    for i, result in enumerate(results):
+        with tabs[i+1]:
+            scope_id = result.get('metadata', {}).get('analysis_scope', 'Unknown')
+            scope_name = get_human_friendly_scope_name(scope_id)
+            st.header(f"Analysis: {scope_name}")
 
-    with tab3:
-        display_insights(results)
+            # Metadata & Coaching Message
+            display_scope_metrics(result)
 
-    with tab4:
-        display_recommendations(results)
+            # Components
+            display_observations_for_scope(result.get('key_observations', []))
+            display_insights_for_scope(result.get('interpretation', []))
+            display_recommendations_for_scope(result.get('actionable_recommendations', []))
+            display_source_data_for_scope(result.get('source_data'))
 
-    with tab5:
+    # 3. Coaching Summary Tab
+    with tabs[-1]:
+        st.header("🌟 Session Wrap-up")
         display_coaching_messages(results)
-
-    with tab6:
-        display_source_data(results)
 
     # Footer
     st.markdown("---")
