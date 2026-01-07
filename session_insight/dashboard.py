@@ -628,7 +628,7 @@ def run_graph_analysis(presentation_id: str, progress_callback=None) -> str:
         for key, value in output.items():
             nodes_completed += 1
             if progress_callback:
-                progress_callback(f"Completed: {key}")
+                progress_callback({ "status": f"{key} is working..", "progress": nodes_completed })
 
             # Store the final state
             if key == "aggregate_insights":
@@ -690,8 +690,10 @@ def main():
 
                     try:
                         # Define progress callback
-                        def update_progress(message):
-                            status_text.text(message)
+                        def update_progress(update):
+                            status_text.text(update['status'])
+                            # total about 12 updates
+                            progress_bar.progress(update['progress'] * 8)
 
                         # Run the analysis
                         with st.spinner("Analyzing presentation..."):
@@ -700,6 +702,7 @@ def main():
                                 progress_callback=update_progress
                             )
                             progress_bar.progress(100)
+                            status_text.text('')
 
                         # Load the results
                         if results_file_path and Path(results_file_path).exists():
