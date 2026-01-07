@@ -25,6 +25,8 @@ try:
 except ImportError as e:
     GRAPH_AVAILABLE = False
     GRAPH_IMPORT_ERROR = str(e)
+    import traceback
+    print(traceback.format_exc())
 
 # Page configuration
 st.set_page_config(
