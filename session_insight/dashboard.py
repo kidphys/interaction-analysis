@@ -832,6 +832,7 @@ def main():
             st.subheader('🌟 Expert Coaching Summary')
             st.markdown(coaching_summary)
 
+        st.divider()
         st.subheader('🔍 Key metrics')
         # Key metrics
         if not df.empty:
@@ -847,10 +848,10 @@ def main():
                     st.metric("Avg Participation", f"{avg_participation:.1f}")
 
             with col3:
-                if 'accuracy' in df.columns:
-                    quiz_slides = df.dropna()[df['accuracy'] > 0]
+                if 'accuracy_percentage' in df.columns:
+                    quiz_slides = df[df['accuracy_percentage'] > 0]
                     if not quiz_slides.empty:
-                        avg_accuracy = quiz_slides['accuracy'].mean() * 100
+                        avg_accuracy = quiz_slides['accuracy_percentage'].mean()
                         st.metric("Avg Quiz Accuracy", f"{avg_accuracy:.1f}%")
 
             with col4:
