@@ -30,7 +30,6 @@ except ImportError as e:
 st.set_page_config(
     page_title="Session Insight Dashboard",
     page_icon="📊",
-    layout="wide",
     initial_sidebar_state="expanded"
 )
 
@@ -100,14 +99,29 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-def load_analysis_results(file_path: str) -> List[Dict[str, Any]]:
+def load_analysis_results(file_path: str) -> Dict[str, Any]:
     """Load analysis results from JSON file."""
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
-            return json.load(f)
+            data = json.load(f)
+
+            # Handle both new dict structure and old list structure
+            if isinstance(data, dict):
+                return {
+                    "insights": data.get("detailed_insights", []),
+                    "coaching_summary": data.get("coaching_summary", ""),
+                    "presentation_id": data.get("presentation_id", "Unknown")
+                }
+            elif isinstance(data, list):
+                return {
+                    "insights": data,
+                    "coaching_summary": "",
+                    "presentation_id": "Unknown"
+                }
+            return {"insights": [], "coaching_summary": "", "presentation_id": "Unknown"}
     except Exception as e:
         st.error(f"Error loading file: {e}")
-        return []
+        return {"insights": [], "coaching_summary": "", "presentation_id": "Unknown"}
 
 
 def extract_slide_data(results: List[Dict[str, Any]]) -> pd.DataFrame:
@@ -682,7 +696,10 @@ def main():
 
                         # Load the results
                         if results_file_path and Path(results_file_path).exists():
-                            results = load_analysis_results(results_file_path)
+                            data = load_analysis_results(results_file_path)
+                            results = data["insights"]
+                            coaching_summary = data["coaching_summary"]
+
                             if results:
                                 st.sidebar.success(f"✅ Analysis complete! Loaded {len(results)} analyses")
                                 st.sidebar.info(f"📄 Results saved to: {results_file_path}")
@@ -720,7 +737,13 @@ def main():
 
         if uploaded_file is not None:
             try:
-                results = json.load(uploaded_file)
+                data = json.load(uploaded_file)
+                if isinstance(data, dict):
+                    results = data.get("detailed_insights", [])
+                    coaching_summary = data.get("coaching_summary", "")
+                else:
+                    results = data
+                    coaching_summary = ""
                 st.sidebar.success(f"✅ Loaded {len(results)} analyses")
             except Exception as e:
                 st.sidebar.error(f"Error loading file: {e}")
@@ -733,7 +756,9 @@ def main():
 
         if file_path:
             if Path(file_path).exists():
-                results = load_analysis_results(file_path)
+                data = load_analysis_results(file_path)
+                results = data["insights"]
+                coaching_summary = data["coaching_summary"]
                 if results:
                     st.sidebar.success(f"✅ Loaded {len(results)} analyses")
             else:
@@ -793,6 +818,11 @@ def main():
     # 1. Overview Tab
     with tabs[0]:
         st.header("📈 Session Overview")
+
+        # Global Coaching Summary
+        if 'coaching_summary' in locals() and coaching_summary:
+            st.subheader('🌟 Expert Coaching Summary')
+            st.markdown(coaching_summary)
 
         # Key metrics
         if not df.empty:

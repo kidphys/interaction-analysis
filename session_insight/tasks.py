@@ -34,6 +34,7 @@ TASKS = [
             - Slides likely causing disengagement
             - Slides that successfully invite interaction
             - Recommendations for slide ordering or facilitation
+            - IMPORTANT: consider the slide_title and the flow of content.
         """
     ),
     AnalysisTask(
@@ -53,6 +54,9 @@ TASKS = [
             Identify:
             - Slide types that consistently attract or discourage responses
             - Whether response effort appears to differ by slide type
+
+            Slide types context:
+            - Short Answer: each participant can submit 1 answer
 
             Return:
             - Engagement ranking by slide type
@@ -112,6 +116,7 @@ TASKS = [
             Return:
             - Which expressive slides are successful
             - Which slides may need better prompts or facilitation
+            - IMPORTANT: consider the slide_title and the flow of content.
         """
     ),
     AnalysisTask(
@@ -142,31 +147,72 @@ TASKS = [
             Return:
             - Insights into participant thinking
             - Suggestions to improve prompt wording or facilitation
+            - IMPORTANT: consider the slide_title and the flow of content.
         """
     ),
     AnalysisTask(
         id="Q4.1",
         category="Slide Health Check",
         sql_template="""
-            SELECT
-              slide_index,
-              slide_title,
-              slide_type,
-              slide_category,
-              COUNT(DISTINCT participant_id) AS participants,
-              COUNT(*) AS responses,
-              AVG(CASE WHEN correct THEN 1 ELSE 0 END) AS accuracy,
-              COUNT(DISTINCT answer_text) AS answer_variability
-            FROM mart
-            GROUP BY slide_index, slide_title, slide_type, slide_category;
+WITH totals AS (
+  SELECT COUNT(DISTINCT participant_id) AS total_participants
+  FROM mart
+),
+per_slide AS (
+  SELECT
+    slide_index,
+    slide_title,
+    slide_type,
+    slide_category,
+
+    COUNT(DISTINCT participant_id) AS participants,
+    COUNT(*) AS responses,
+
+    AVG(CASE WHEN correct THEN 1 ELSE 0 END) * 100 AS accuracy_percentage,
+    COUNT(DISTINCT answer_text) AS distinct_answers
+  FROM mart
+  GROUP BY slide_index, slide_title, slide_type, slide_category
+)
+SELECT
+  p.slide_index,
+  p.slide_title,
+  p.slide_type,
+  p.slide_category,
+
+  p.participants,
+  t.total_participants,
+  (p.participants * 1.0 / NULLIF(t.total_participants, 0)) AS participant_rate,
+
+  p.responses,
+
+  -- accuracy only meaningful for quiz-like slides; hide it otherwise if you want
+  CASE
+    WHEN p.slide_category = 'Quiz' THEN p.accuracy_percentage
+    ELSE NULL
+  END AS accuracy_percentage,
+
+  -- variability should NOT exist for Poll
+  CASE
+    WHEN lower(p.slide_type) = 'poll' OR lower(p.slide_category) = 'poll' THEN NULL
+    ELSE (p.distinct_answers * 1.0 / NULLIF(p.participants, 0))
+  END AS answer_variability_per_participant
+
+FROM per_slide p
+CROSS JOIN totals t
+ORDER BY p.slide_index;
+
         """,
         analysis_prompt="""
             Evaluate slide health using metrics appropriate to each slide type.
 
             Rules:
             - Quiz slides: participation + accuracy
+              - On average, accuracy percentage of the whole AhaSlides data is at about 60%. Refer to this as a benchmark.
             - Open-ended slides: participation + semantic richness
-            - Word-cloud slides: response count + balance
+            - Word-cloud slides: response count + balance + variability
+            - Short answer slides: response count + balance + variability
+            - Poll slides: response count + balance
+              - IMPORTANT: variability & accuracy is IRRELEVANT to Poll slides
 
             Classify slides as:
             - Highly effective
@@ -176,7 +222,11 @@ TASKS = [
 
             Return:
             - Slide health classification
-            - Highest-priority fixes
+            - Highest-priority fixes for slide_title: make it very explicit and clear what the change should be.
+            - IMPORTANT: consider the slide_title when assessing the metrics.
+              - Take a look at the whole flow of the presentation
+              - Ask: does this slide_title have something to do with how the result is?
+              - Refer to slide as both index and slide_title when giving insight
         """
     ),
     AnalysisTask(
@@ -185,11 +235,12 @@ TASKS = [
         sql_template="""
             SELECT
               slide_index,
+              slide_title,
               COUNT(DISTINCT participant_id) AS participants,
               AVG(CASE WHEN correct THEN 1 ELSE 0 END) AS accuracy
             FROM mart
             where slide_category = 'Quiz' AND id IS NOT null
-            GROUP BY slide_index
+            GROUP BY slide_index, slide_title
             ORDER BY slide_index;
         """,
         analysis_prompt="""
@@ -206,6 +257,7 @@ TASKS = [
             Return:
             - Flow issues
             - Recommendations for pacing or reordering slides
+            - IMPORTANT: consider the slide_title and the flow of content.
         """
     ),
     AnalysisTask(
