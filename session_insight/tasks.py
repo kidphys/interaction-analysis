@@ -41,12 +41,22 @@ TASKS = [
         id="Q1.2",
         category="🧭 Slide Format Effectiveness",
         sql_template="""
+            WITH base AS (
+              SELECT
+                slide_type,
+                COUNT(DISTINCT slide_id) as slide_count,
+                COUNT(DISTINCT participant_id) AS participants,
+                COUNT(*) AS total_answers
+              FROM mart
+              GROUP BY slide_type
+            )
             SELECT
               slide_type,
-              COUNT(DISTINCT participant_id) AS participants,
-              COUNT(*) AS total_answers
-            FROM mart
-            GROUP BY slide_type;
+              slide_count,
+              participants,
+              total_answers,
+              total_answers / participants as answer_per_partipants
+            FROM base
         """,
         analysis_prompt="""
             Compare participation across slide types.
@@ -69,15 +79,16 @@ TASKS = [
         sql_template="""
             SELECT
               slide_type,
-              AVG(CASE WHEN correct THEN 1 ELSE 0 END) AS accuracy,
+              AVG(CASE WHEN correct THEN 1 ELSE 0 END) * 100 AS accuracy_percentage,
               COUNT(*) AS answers
             FROM mart
+            WHERE slide_category = 'Quiz'
             GROUP BY slide_type;
         """,
         analysis_prompt="""
             Compare accuracy across slide types where correctness applies.
 
-            Do not compare quiz slides with expressive slide types.
+            On average, accuracy percentage of the whole AhaSlides data is at about 60%. Refer to this as a benchmark.
 
             Identify:
             - Quiz formats that perform better or worse
@@ -99,6 +110,7 @@ TASKS = [
               COUNT(*) AS total_responses,
               COUNT(DISTINCT answer_text) AS distinct_responses
             FROM mart
+            WHERE slide_type in ('Word Cloud', 'Open Ended', 'Brainstorm', 'Short Answer')
             GROUP BY slide_index, slide_title, slide_type;
         """,
         analysis_prompt="""
@@ -237,7 +249,7 @@ ORDER BY p.slide_index;
               slide_index,
               slide_title,
               COUNT(DISTINCT participant_id) AS participants,
-              AVG(CASE WHEN correct THEN 1 ELSE 0 END) AS accuracy
+              AVG(CASE WHEN correct THEN 1 ELSE 0 END) * 100 AS accuracy_percentage
             FROM mart
             where slide_category = 'Quiz' AND id IS NOT null
             GROUP BY slide_index, slide_title
@@ -268,7 +280,7 @@ ORDER BY p.slide_index;
               participant_id,
               participant_name,
               COUNT(*) AS responses,
-              AVG(CASE WHEN correct IS TRUE THEN 1.0 ELSE 0.0 END) AS accuracy
+              AVG(CASE WHEN correct IS TRUE THEN 1.0 ELSE 0.0 END) * 100 AS accuracy_percentage
             FROM mart
             where slide_category = 'Quiz' AND id IS NOT null
             GROUP by participant_id, participant_name
@@ -293,15 +305,29 @@ ORDER BY p.slide_index;
         id="Q6.2",
         category="🧩 Personalized Engagement Opportunities",
         sql_template="""
-            SELECT
-              participant_id,
-              participant_name,
-              slide_type,
-              COUNT(*) AS responses,
-              AVG(CASE WHEN correct IS TRUE THEN 1.0 ELSE 0.0 END) AS accuracy
-            FROM mart
-            where slide_category = 'Quiz' AND id IS NOT null
-            GROUP BY participant_id, participant_name, slide_type;
+WITH participation AS (
+  SELECT
+    participant_id,
+    participant_name,
+    slide_type,
+    COUNT(*) AS responses,
+    COUNT(DISTINCT slide_id) AS slides_joined,
+    AVG(CASE WHEN correct IS TRUE THEN 1.0 ELSE 0.0 END) * 100 AS accuracy_percentage
+  FROM mart
+  WHERE slide_category = 'Quiz'
+    AND id IS NOT NULL
+  GROUP BY participant_id, participant_name, slide_type
+)
+
+SELECT
+  participant_id,
+  participant_name,
+  slide_type,
+  responses,
+  slides_joined,
+  responses * 100.0 / slides_joined AS response_rate,
+  accuracy_percentage
+FROM participation;
         """,
         analysis_prompt="""
             Analyze how participants interact with different slide types.
@@ -309,6 +335,9 @@ ORDER BY p.slide_index;
             Identify:
             - Slide types that attract or repel certain participants
             - Opportunities for adaptive or optional content
+
+            NOTE:
+            - `response_rate` is in percentage
 
             Return:
             - Key interaction patterns

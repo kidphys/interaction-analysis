@@ -848,7 +848,7 @@ def main():
 
             with col3:
                 if 'accuracy' in df.columns:
-                    quiz_slides = df[df['accuracy'] > 0]
+                    quiz_slides = df.dropna()[df['accuracy'] > 0]
                     if not quiz_slides.empty:
                         avg_accuracy = quiz_slides['accuracy'].mean() * 100
                         st.metric("Avg Quiz Accuracy", f"{avg_accuracy:.1f}%")
