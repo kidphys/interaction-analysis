@@ -16,15 +16,16 @@ from datetime import datetime
 import tempfile
 
 # Add parent directory to path for imports
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# Import the graph creation function
-try:
-    from session_insight.graph import create_session_insight_graph
-    GRAPH_AVAILABLE = True
-except ImportError as e:
-    GRAPH_AVAILABLE = False
-    GRAPH_IMPORT_ERROR = str(e)
+from session_insight_graph import create_session_insight_graph
+GRAPH_AVAILABLE = True
+# # Import the graph creation function
+# try:
+  # GRAPH_AVAILABLE = True
+# except ImportError as e:
+#     GRAPH_AVAILABLE = False
+#     GRAPH_IMPORT_ERROR = str(e)
 
 # Page configuration
 st.set_page_config(
