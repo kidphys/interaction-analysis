@@ -97,7 +97,7 @@ def _execute_with_columns(sql, create_engine: Callable):
     return rows, cols
 
 
-@lru_cache(maxsize=1)
+@lru_cache(maxsize=100)
 def execute_with_columns(sql):
     print(f'Execute_with_columns: {sql}')
     now = arrow.now()
