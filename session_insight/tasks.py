@@ -9,7 +9,7 @@ class AnalysisTask(NamedTuple):
 TASKS = [
     AnalysisTask(
         id="Q1.1",
-        category="Participant & Flow",
+        category="🧭 Slide Attention Map",
         sql_template="""
             SELECT
               slide_index,
@@ -38,7 +38,7 @@ TASKS = [
     ),
     AnalysisTask(
         id="Q1.2",
-        category="Slide Type Engagement",
+        category="🧭 Slide Format Effectiveness",
         sql_template="""
             SELECT
               slide_type,
@@ -61,7 +61,7 @@ TASKS = [
     ),
     AnalysisTask(
         id="Q2.2",
-        category="Quiz Performance",
+        category="🧭 Learning & Quiz Impact",
         sql_template="""
             SELECT
               slide_type,
@@ -86,7 +86,7 @@ TASKS = [
     ),
     AnalysisTask(
         id="Q3.1",
-        category="Answer Diversity",
+        category="💬 Idea Generation Strength",
         sql_template="""
             SELECT
               slide_index,
@@ -116,7 +116,7 @@ TASKS = [
     ),
     AnalysisTask(
         id="Q3.2",
-        category="Answer Text Sentiment",
+        category="🗣️ Audience Voice & Sentiment",
         sql_template="""
             SELECT
               slide_index,
@@ -146,7 +146,7 @@ TASKS = [
     ),
     AnalysisTask(
         id="Q4.1",
-        category="Slide Health",
+        category="Slide Health Check",
         sql_template="""
             SELECT
               slide_index,
@@ -181,13 +181,14 @@ TASKS = [
     ),
     AnalysisTask(
         id="Q5.1",
-        category="Session Flow & Fatigue",
+        category="⏱️ Energy & Fatigue Curve",
         sql_template="""
             SELECT
               slide_index,
               COUNT(DISTINCT participant_id) AS participants,
               AVG(CASE WHEN correct THEN 1 ELSE 0 END) AS accuracy
             FROM mart
+            where slide_category = 'Quiz' AND id IS NOT null
             GROUP BY slide_index
             ORDER BY slide_index;
         """,
@@ -209,7 +210,7 @@ TASKS = [
     ),
     AnalysisTask(
         id="Q6.1",
-        category="Participant Performance",
+        category="👤 Participation Quiz Performance",
         sql_template="""
             SELECT
               participant_id,
@@ -238,7 +239,7 @@ TASKS = [
     ),
     AnalysisTask(
         id="Q6.2",
-        category="Participant Interaction",
+        category="🧩 Personalized Engagement Opportunities",
         sql_template="""
             SELECT
               participant_id,
