@@ -14,7 +14,7 @@ import operator
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from redshift_api import execute_with_columns
+from redshift_api import execute_with_columns, st_execute_with_columns
 from session_insight.tasks import TASKS, MART_SQL, SYSTEM_PROMPT, COACH_PROMPT, AnalysisTask
 from session_insight.schemas import SlideAnalysisResult, SlideAnalysisResultBase
 
@@ -44,7 +44,7 @@ def load_datamart(state: SessionInsightState):
     # 1. Fetch from Redshift
     sql = MART_SQL.format(presentation_id=presentation_id)
     try:
-        rows, cols = execute_with_columns(sql)
+        rows, cols = st_execute_with_columns(sql)
         df = pd.DataFrame(rows, columns=cols)
         print(f"Loaded {len(df)} rows from Redshift.")
     except Exception as e:
@@ -87,12 +87,10 @@ def map_tasks(state: SessionInsightState):
         for task in TASKS
     ]
 
-def analyst(state: AnalystInput):
-    task = state['task']
-    duckdb_path = state['duckdb_path']
+from functools import lru_cache
 
-    print(f"Running task {task.id}: {task.category}...")
-
+@lru_cache(maxsize=100)
+def do_analyst_job(task: AnalysisTask, duckdb_path: str):
     # 1. Execute Query
     con = duckdb.connect(duckdb_path, read_only=True)
     try:
@@ -130,11 +128,20 @@ def analyst(state: AnalystInput):
 
     return {"insights": []}
 
+
+def analyst(state: AnalystInput):
+    task = state['task']
+    duckdb_path = state['duckdb_path']
+
+    print(f"Running task {task.id}: {task.category}...")
+
+    return do_analyst_job(task, duckdb_path)
+
+
 def coach(state: SessionInsightState):
     insights = state['insights']
     print(f"Coaching based on {len(insights)} insights...")
 
-    # Extract only observation and interpretation
     context_list = []
     for ins in insights:
         obs = [o.observation for o in ins.key_observations]
@@ -161,6 +168,7 @@ def coach(state: SessionInsightState):
         coaching_msg = "Great job on your session! The data shows strong engagement across the board."
 
     return {"coaching_message": coaching_msg}
+
 
 def aggregate_insights(state: SessionInsightState):
     insights = state['insights']

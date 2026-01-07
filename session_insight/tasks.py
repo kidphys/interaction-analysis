@@ -164,7 +164,7 @@ TASKS = [
     ),
     AnalysisTask(
         id="Q4.1",
-        category="Slide Health Check",
+        category="🩺 Slide Health Check",
         sql_template="""
 WITH totals AS (
   SELECT COUNT(DISTINCT participant_id) AS total_participants
