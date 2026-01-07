@@ -315,26 +315,20 @@ def display_scope_metrics(result: Dict[str, Any]):
     assumptions = metadata.get('assumptions_applied', [])
     coaching_message = result.get('coaching_message')
 
-    # Coaching Message first for engagement
-    if coaching_message:
-        st.markdown(f"""
-        <div class="coaching-card">
-            <h4>🌟 Expert Feedback</h4>
-            <p style="font-style: italic; font-size: 1.1em;">"{coaching_message}"</p>
-        </div>
-        """, unsafe_allow_html=True)
+    st.subheader('🌟 Expert Feedback')
+    st.markdown(coaching_message)
 
-    st.markdown("#### ⚙️ Analysis Parameters")
-    col1, col2 = st.columns([1, 2])
-    with col1:
-        confidence_color = {'high': '🟢', 'medium': '🟡', 'low': '🔴'}.get(confidence, '⚪')
-        st.markdown(f"**Confidence:** {confidence_color} {confidence.title()}")
-    with col2:
-        if assumptions:
-            st.markdown("**Assumptions Applied:**")
-            for a in assumptions:
-                st.markdown(f"- {a}")
-    st.markdown("---")
+    # st.markdown("#### ⚙️ Analysis Parameters")
+    # col1, col2 = st.columns([1, 2])
+    # with col1:
+    #     confidence_color = {'high': '🟢', 'medium': '🟡', 'low': '🔴'}.get(confidence, '⚪')
+    #     st.markdown(f"**Confidence:** {confidence_color} {confidence.title()}")
+    # with col2:
+    #     if assumptions:
+    #         st.markdown("**Assumptions Applied:**")
+    #         for a in assumptions:
+    #             st.markdown(f"- {a}")
+    # st.markdown("---")
 
 
 def display_observations_for_scope(observations: List[Dict[str, Any]]):
@@ -349,13 +343,12 @@ def display_observations_for_scope(observations: List[Dict[str, Any]]):
     for obs in sorted_obs:
         severity = obs.get('severity', 'low')
         severity_emoji = {'high': '🔴', 'medium': '🟡', 'low': '🟢'}
-
-        st.markdown(f"""
-        <div class="observation-card">
-            <h4>{severity_emoji.get(severity, '⚪')} {obs.get('observation', 'N/A')}</h4>
-            <p><strong>Evidence:</strong> {obs.get('evidence', 'N/A')}</p>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(f"{severity_emoji.get(severity, '⚪')} - {obs.get('observation', 'N/A')}")
+        col1, col2 = st.columns([1, 5])
+        with col1:
+            st.badge("Evidence")
+        with col2:
+            st.caption(f"{obs.get('evidence', 'N/A')}")
 
 
 def display_insights_for_scope(insights: List[Dict[str, Any]]):
@@ -365,17 +358,16 @@ def display_insights_for_scope(insights: List[Dict[str, Any]]):
 
     st.subheader("💡 Insights & Interpretations")
     for interp in insights:
-        st.markdown(f"""
-        <div class="insight-card">
-            <h4>💡 {interp.get('insight', 'N/A')}</h4>
-            <p><strong>Explanation:</strong> {interp.get('explanation', 'N/A')}</p>
-        </div>
-        """, unsafe_allow_html=True)
-
-        if interp.get('alternative_explanations'):
-            with st.expander("Show Alternative Explanations"):
-                for alt in interp['alternative_explanations']:
-                    st.markdown(f"- {alt}")
+        st.markdown(f"💡 - {interp.get('insight', 'N/A')}")
+        col1, col2 = st.columns([1, 5])
+        with col1:
+            st.badge("Explanation")
+        with col2:
+            st.caption(f"{interp.get('explanation', 'N/A')}")
+            if interp.get('alternative_explanations'):
+                with st.expander("Show Alternative Explanations"):
+                    for alt in interp['alternative_explanations']:
+                        st.caption(f"- {alt}")
 
 
 def display_recommendations_for_scope(recommendations: List[Dict[str, Any]]):
@@ -514,7 +506,6 @@ def display_recommendations(results: List[Dict[str, Any]]):
 
 
 def display_recommendation_card(rec: Dict[str, Any]):
-    """Display a single recommendation card."""
     target_emoji = {
         'slide': '📄',
         'slide_type': '📋',
@@ -522,14 +513,28 @@ def display_recommendation_card(rec: Dict[str, Any]):
         'facilitation': '🎤',
         'analytics': '📊'
     }
+    st.markdown(f"{target_emoji.get(rec.get('target', 'slide'), '📌')} - {rec.get('recommendation', 'N/A')}")
+    col1, col2 = st.columns([1, 5])
+    with col1:
+        st.badge("Impact")
+    with col2:
+        st.caption(f"{rec.get('expected_impact', 'N/A').replace('_', ' ').title()}")
+    # """Display a single recommendation card."""
+    # target_emoji = {
+    #     'slide': '📄',
+    #     'slide_type': '📋',
+    #     'session_flow': '🔄',
+    #     'facilitation': '🎤',
+    #     'analytics': '📊'
+    # }
 
-    st.markdown(f"""
-    <div class="recommendation-card">
-        <h4>{target_emoji.get(rec.get('target', 'slide'), '📌')} {rec.get('recommendation', 'N/A')}</h4>
-        <p><strong>Target:</strong> {rec.get('target', 'N/A').replace('_', ' ').title()}</p>
-        <p><strong>Expected Impact:</strong> {rec.get('expected_impact', 'N/A')}</p>
-    </div>
-    """, unsafe_allow_html=True)
+    # st.markdown(f"""
+    # <div class="recommendation-card">
+    #     <h4>{target_emoji.get(rec.get('target', 'slide'), '📌')} {rec.get('recommendation', 'N/A')}</h4>
+    #     <p><strong>Target:</strong> {rec.get('target', 'N/A').replace('_', ' ').title()}</p>
+    #     <p><strong>Expected Impact:</strong> {rec.get('expected_impact', 'N/A')}</p>
+    # </div>
+    # """, unsafe_allow_html=True)
 
 
 def display_coaching_messages(results: List[Dict[str, Any]]):
@@ -817,13 +822,12 @@ def main():
 
     # 1. Overview Tab
     with tabs[0]:
-        st.header("📈 Session Overview")
-
         # Global Coaching Summary
         if 'coaching_summary' in locals() and coaching_summary:
             st.subheader('🌟 Expert Coaching Summary')
             st.markdown(coaching_summary)
 
+        st.subheader('🔍 Key metrics')
         # Key metrics
         if not df.empty:
             col1, col2, col3, col4 = st.columns(4)
@@ -892,7 +896,6 @@ def main():
         with tabs[i+1]:
             scope_id = result.get('metadata', {}).get('analysis_scope', 'Unknown')
             scope_name = get_human_friendly_scope_name(scope_id)
-            st.header(f"Analysis: {scope_name}")
 
             # Metadata & Coaching Message
             display_scope_metrics(result)
