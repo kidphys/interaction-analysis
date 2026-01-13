@@ -353,6 +353,8 @@ WITH slides AS (
     dq.slide_title,
     dq.slide_type,
     dq.slide_order,
+    dq.slide_content_attributes,
+    dq.slide_metadata,
     ROW_NUMBER() OVER (
       ORDER BY dq.slide_order NULLS LAST, dq.slide_id
     ) AS slide_index
@@ -382,6 +384,8 @@ SELECT
     s.slide_title,
     s.slide_order,
     s.slide_index,
+    s.slide_content_attributes,
+    s.slide_metadata,
     CASE
       WHEN COALESCE(fa.slide_type, s.slide_type) IN (
         'Correct Order','Match Pairs','Categorise','Pick Answer','Short Answer'

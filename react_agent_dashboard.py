@@ -127,6 +127,26 @@ def display_table(item):
     st.dataframe(df)
 
 
+import altair as alt
+
+def pie_chart_from_df(df, title=None):
+    category_col = df.columns[0]
+    value_col = df.columns[1]
+
+    chart = alt.Chart(df).mark_arc().encode(
+        theta=alt.Theta(field=value_col, type="quantitative"),
+        color=alt.Color(field=category_col, type="nominal"),
+        tooltip=[
+            alt.Tooltip(f"{category_col}:N", title=category_col),
+            alt.Tooltip(f"{value_col}:Q", title=value_col)
+        ]
+    )
+
+    if title:
+        chart = chart.properties(title=title)
+
+    return chart
+
 def display_chart(item):
     if item.title and item.title.strip():
         st.markdown(f"📈 **{item.title}**")
@@ -137,6 +157,15 @@ def display_chart(item):
         st.line_chart(df, x=df.columns[0], y=df.columns[1])
     elif item.chart_type == "area":
         st.area_chart(df, x=df.columns[0], y=df.columns[1])
+    elif item.chart_type == "pie":
+        try:
+            chart = pie_chart_from_df(df, item.title)
+            st.altair_chart(chart, use_container_width=True)
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            st.dataframe(df)
+            st.info(f"Chart type '{item.chart_type}' displayed as table")
     else:
         # Default to dataframe if chart type not supported
         st.dataframe(df)
