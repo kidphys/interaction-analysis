@@ -1,10 +1,8 @@
-from langchain_core.messages import AIMessage
 import streamlit as st
 from participant_insight.participant_agent import ParticipantInsightAgent, query_participant_answers
 from react_agent_dashboard import display_chart
 from st_agent import create_agent_dashboard
-from participant_insight.participant_clustering import load_data_from_redshift
-from structured_agent import InsightResponse, StructuredAgent
+from structured_agent import InsightResponse
 
 
 def display_structured_response(response_content):
@@ -95,5 +93,8 @@ def create_participant_insight_dashboard():
 
 
 if __name__ == "__main__":
-  create_participant_insight_dashboard()
-
+  # create_participant_insight_dashboard()
+    agent = ParticipantInsightAgent(presentation_id='7890915')
+    output = agent.invoke("What is the completion rate of the presentation?")
+    print(type(output))
+    print(output)

@@ -90,7 +90,6 @@ class ParticipantInsightAgent(StructuredAgent):
     def _initialize_agent(self):
         """Initialize the React agent with memory"""
         model = init_chat_model(self.model_name, max_tokens=8096)
-
         llm = model.with_structured_output(InsightResponse)
         self.llm = llm
 
