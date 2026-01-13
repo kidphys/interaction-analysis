@@ -23,7 +23,10 @@ def query_participant_answers(presentation_id: str):
         df = pd.DataFrame(rows, columns=cols)
         print('saving file', filepath)
         df.to_parquet(filepath)
-    return df.to_csv(index=False)
+
+    tf = pd.pivot_table(df, index='participant_name', values=['answer_text', 'answer_time_seconds'], columns=['slide_index', 'slide_title', 'slide_type'], aggfunc=lambda x: ','.join(map(str, x.dropna())))
+    # return tf.to_csv(index=False)
+    return str(tf.to_dict(orient='records'))
 
 
 @tool
