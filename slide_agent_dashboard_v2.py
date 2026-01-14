@@ -230,14 +230,6 @@ class SlideStructuredAgent(StructuredAgent):
         """
         thread_id = f"user_{self.user_id}"
         return self.agent_executor.get_structured_response(thread_id)
-        # if self.insight_response is None:
-        #     return InsightResponse(items=[
-        #         MessageItem(
-        #             type="message",
-        #             content="⚠️ Structured output not found or not processed yet"
-        #         )
-        #     ])
-        # return self.insight_response
 
 
 def display_structured_response(response_content, insight_duckdb_file: str = "insight_items.duckdb" ):
@@ -306,7 +298,6 @@ def create_slide_agent_dashboard():
 
     # Chat input
     if prompt := st.chat_input("Ask about your data (e.g., 'Show me rows where column > 100')..."):
-        import pdb; pdb.set_trace()
         st_process_user_prompt(st.session_state.agent, prompt, stream_response_ui_func=stream_agent_response_ui_v2)
 
     for message in st.session_state.messages:

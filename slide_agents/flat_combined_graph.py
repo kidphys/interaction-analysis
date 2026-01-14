@@ -298,10 +298,10 @@ def query_node_with_retry(state: CombinedState):
 # =========================
 
 def create_flat_combined_graph(
-    # model_name: str = "claude-sonnet-4-20250514",
-    # model_provider: str = "anthropic",
-    model_name: str = "gpt-4o",
-    model_provider: str = "openai",
+    model_name: str = "claude-sonnet-4-20250514",
+    model_provider: str = "anthropic",
+    # model_name: str = "gpt-4o",
+    # model_provider: str = "openai",
     system_prompt: str = None,
     csv_paths: List[str] = None,
     name: str = "answer_stats",
