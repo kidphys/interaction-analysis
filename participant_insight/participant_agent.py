@@ -26,7 +26,7 @@ def query_participant_answers(presentation_id: str):
 
     tf = pd.pivot_table(df, index='participant_name', values=['answer_text', 'answer_time_seconds'], columns=['slide_index', 'slide_title', 'slide_type'], aggfunc=lambda x: ','.join(map(str, x.dropna())))
     # return tf.to_csv(index=False)
-    return str(tf.to_dict(orient='records'))
+    return str(tf.reset_index().to_dict(orient='records'))
 
 
 @tool
