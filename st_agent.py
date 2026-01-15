@@ -125,8 +125,7 @@ def create_agent_dashboard(
             st.session_state.messages = []
 
 
-    if 'agent' not in st.session_state:
-        st.session_state.agent = agent
+    st.session_state.agent = agent
 
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
