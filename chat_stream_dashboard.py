@@ -3,7 +3,7 @@ from langgraph.prebuilt import create_react_agent
 from langchain.chat_models import init_chat_model
 
 
-from typing import TypedDict, List
+from typing import TypedDict, List, Union
 
 from langgraph.graph import StateGraph, END
 from langchain.chat_models import init_chat_model
@@ -54,6 +54,15 @@ Give me a table of world population data
 
 import streamlit as st
 
+import pandas as pd
+
+def to_st_element(text: Union[str, dict]) -> Union[str, pd.DataFrame]:
+    if isinstance(text, str):
+        return text
+    elif isinstance(text, dict):
+        df = parse_text_to_dataframe(text['content'])
+        return df
+
 def st_stream_markdown():
     input_messages = [
         {"role": "user", "content": system_prompt}
@@ -70,11 +79,7 @@ def st_stream_markdown():
                 markdown_s = markdown_stream.get_markdowns()
                 if len(markdown_s) > 0:
                     for markdown in markdown_s:
-                        if isinstance(markdown, str):
-                            yield markdown
-                        elif isinstance(markdown, dict):
-                            df = parse_text_to_dataframe(markdown['content'])
-                            yield df
+                        yield to_st_element(markdown)
 
 
 # -------- Run with streaming --------
