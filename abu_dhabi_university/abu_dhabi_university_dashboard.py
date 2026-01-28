@@ -59,7 +59,7 @@ def build_events_table(participants, answers, presentation_names, sessions, user
 
 
 def get_data(time_filter):
-    user_ids = tuple(pd.read_csv('data_dump/abu_dhabi_university_users.csv')['id'].tolist())
+    user_ids = tuple(pd.read_csv('abu_dhabi_university/abu_dhabi_university_users.csv')['id'].tolist())
 
     sessions, presentations, users = parallelize([
         (fetch_sessions_by_users, (user_ids,), {'prefix': 'adu_'}),
