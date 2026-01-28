@@ -1,4 +1,3 @@
-import time
 from datetime import datetime, timedelta
 
 import altair as alt
@@ -6,14 +5,17 @@ import pandas as pd
 import streamlit as st
 
 from fetch_data import (
-    fetch_sessions_by_users,
+    fetch_sessions_by_account,
+    fetch_presentations_by_account,
     fetch_users,
-    fetch_presentations_by_users,
-    fetch_participants_by_users,
-    fetch_answers_by_users,
+    fetch_user_count_by_account,
+    fetch_participants_by_presentations,
+    fetch_answers_by_presentations,
     fetch_presentations_by_ids,
 )
 from utils import parallelize
+
+ACCOUNT_ID = 27029
 
 TIME_FILTERS = {
     'Last 7 days': (7, 'D'),
@@ -59,20 +61,26 @@ def build_events_table(participants, answers, presentation_names, sessions, user
 
 
 def get_data(time_filter):
-    user_ids = tuple(pd.read_csv('abu_dhabi_university/abu_dhabi_university_users.csv')['id'].tolist())
-
-    sessions, presentations, users = parallelize([
-        (fetch_sessions_by_users, (user_ids,), {'prefix': 'adu_'}),
-        (fetch_presentations_by_users, (user_ids,), {'prefix': 'adu_'}),
-        (fetch_users, (user_ids,), {'prefix': 'adu_'}),
+    # Fetch sessions and presentations by account (subquery, no huge IN clause)
+    sessions, presentations, user_count_df = parallelize([
+        (fetch_sessions_by_account, (ACCOUNT_ID,), {'prefix': 'uninorte_'}),
+        (fetch_presentations_by_account, (ACCOUNT_ID,), {'prefix': 'uninorte_'}),
+        (fetch_user_count_by_account, (ACCOUNT_ID,), {'prefix': 'uninorte_'}),
     ])
+    total_members_count = int(user_count_df.iloc[0]['cnt'])
+
+    # Derive active user IDs from sessions + presentations, then fetch user info
+    active_user_ids = tuple(set(sessions['hosted_by_id'].tolist()) | set(presentations['user_id'].tolist()))
+    if not active_user_ids:
+        active_user_ids = (0,)
 
     all_session_ids = tuple(sessions['id'].tolist()) if len(sessions) > 0 else (0,)
 
-    participants, answers, presentation_names = parallelize([
-        (fetch_participants_by_users, (user_ids,), {'prefix': 'adu_'}),
-        (fetch_answers_by_users, (user_ids,), {'prefix': 'adu_'}),
-        (fetch_presentations_by_ids, (all_session_ids,), {'prefix': 'adu_'}),
+    users, participants, answers, presentation_names = parallelize([
+        (fetch_users, (active_user_ids,), {'prefix': 'uninorte_'}),
+        (fetch_participants_by_presentations, (all_session_ids,), {'prefix': 'uninorte_'}),
+        (fetch_answers_by_presentations, (all_session_ids,), {'prefix': 'uninorte_'}),
+        (fetch_presentations_by_ids, (all_session_ids,), {'prefix': 'uninorte_'}),
     ])
 
     # Add hosted_by_id to participants and answers via sessions
@@ -84,7 +92,6 @@ def get_data(time_filter):
     days, granularity = TIME_FILTERS[time_filter]
 
     # Active members (follows time filter)
-    total_members_count = len(users)
     if days is not None:
         cutoff_active = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
         cutoff_prev = (datetime.now() - timedelta(days=days * 2)).strftime('%Y-%m-%d')
@@ -95,9 +102,7 @@ def get_data(time_filter):
         prev_active_presentations = set(presentations[(presentations['createdat_date'] >= cutoff_prev) & (presentations['createdat_date'] < cutoff_active)]['user_id'].tolist())
         prev_active_members_count = len(prev_active_sessions | prev_active_presentations)
     else:
-        active_from_sessions = set(sessions['hosted_by_id'].tolist())
-        active_from_presentations = set(presentations['user_id'].tolist())
-        active_members_count = len(active_from_sessions | active_from_presentations)
+        active_members_count = len(set(sessions['hosted_by_id'].tolist()) | set(presentations['user_id'].tolist()))
         prev_active_members_count = 0
 
     # Last active date per user
@@ -126,6 +131,10 @@ def get_data(time_filter):
         ]
 
     # Overview metrics
+    # Filter answers to only those with valid participants
+    valid_participant_keys = participants[['presentation_id', 'participant_id']].drop_duplicates()
+    answers = answers.merge(valid_participant_keys, on=['presentation_id', 'participant_id'])
+
     participants_with_answers = answers['participant_id'].nunique()
     total_participants = participants['participant_id'].nunique()
     avg_engagement_rate = participants_with_answers / total_participants if total_participants > 0 else 0
@@ -166,7 +175,6 @@ def get_data(time_filter):
     member_stats[['presentations', 'sessions']] = member_stats[['presentations', 'sessions']].fillna(0).astype(int)
     member_stats['total'] = member_stats['presentations'] + member_stats['sessions']
 
-    valid_participant_keys = participants[['presentation_id', 'participant_id']].drop_duplicates()
     valid_answers = answers.merge(valid_participant_keys, on=['presentation_id', 'participant_id'])
     user_participants = participants.groupby('hosted_by_id')['participant_id'].nunique().rename('participants')
     user_engaged = valid_answers.groupby('hosted_by_id')['participant_id'].nunique().rename('engaged')
@@ -257,7 +265,7 @@ def render_events_table(events, title):
 
 def render_dashboard():
     st.set_page_config(layout="wide")
-    st.title('Abu Dhabi University Analytics')
+    st.title('Uninorte Analytics')
     st.markdown("""
     <style>
         div[data-testid="stAppDeployButton"] {
@@ -270,17 +278,17 @@ def render_dashboard():
             gap: 0.25rem !important;
         }
         img[data-testid="stHeaderLogo"] {
-            height: 5rem !important;
+            height: 3rem !important;
             max-height: none !important;
         }
         header[data-testid="stHeader"] {
-            height: 5rem !important;
+            height: 3rem !important;
             max-height: none !important;
         }
     </style>
     """, unsafe_allow_html=True)
-    st.logo('abu_dhabi_university/logo.png')
-    st.set_page_config(page_icon="abu_dhabi_university/favicon.jpg")
+    st.logo('uninorte/logo.png')
+    st.set_page_config(page_icon="uninorte/favicon.jpg")
 
     # Time filter
     filter_col, _ = st.columns([1, 4])
@@ -352,10 +360,10 @@ def render_dashboard():
         'Presentations': st.column_config.Column(width='small'),
     })
 
-    # 20 Biggest Events
+    # Biggest Events
     render_events_table(data['biggest_events'], 'Biggest Events (top 20 by number of responses)')
 
-    # 20 Most Engaging Events
+    # Most Engaging Events
     render_events_table(data['most_engaging_events'], 'Most Engaging Events (top 20 by no. responses / no. participants)')
 
     # Charts

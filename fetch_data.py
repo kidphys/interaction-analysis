@@ -88,6 +88,34 @@ def fetch_answers_by_presentations(presentation_ids, filename='answers', prefix=
 
 
 @st.cache_data(ttl=CACHE_TTL)
+def fetch_sessions_by_account(account_id, filename='sessions_by_account', prefix=''):
+    query = f'''
+    select hosted_by_id, id, hosted_date from aha_report_v5.dim_sessions
+    where hosted_by_id in (select id from aha_report_v5.dim_users where account_id = {account_id})
+    and hosted_date is not null
+    '''
+    return fetch(query, f'{prefix}{filename}')
+
+
+@st.cache_data(ttl=CACHE_TTL)
+def fetch_presentations_by_account(account_id, filename='presentations_by_account', prefix=''):
+    query = f'''
+    select user_id, id, createdat_date from aha_report_v5.dim_presentations
+    where user_id in (select id from aha_report_v5.dim_users where account_id = {account_id})
+    '''
+    return fetch(query, f'{prefix}{filename}')
+
+
+@st.cache_data(ttl=CACHE_TTL)
+def fetch_user_count_by_account(account_id, filename='user_count_by_account', prefix=''):
+    query = f'''
+    select count(*) as cnt from aha_report_v5.dim_users
+    where account_id = {account_id}
+    '''
+    return fetch(query, f'{prefix}{filename}')
+
+
+@st.cache_data(ttl=CACHE_TTL)
 def fetch_presentations_by_ids(presentation_ids, filename='presentations_by_ids', prefix=''):
     query = f'''
     select id, title, user_id from aha_report_v5.dim_presentations
