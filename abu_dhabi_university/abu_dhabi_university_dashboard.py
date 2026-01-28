@@ -80,18 +80,25 @@ def get_data(time_filter):
     participants = participants.assign(hosted_by_id=participants['presentation_id'].map(session_user_map))
     answers = answers.assign(hosted_by_id=answers['presentation_id'].map(session_user_map))
 
-    # Active members (last 30 days) - before time filter
-    cutoff_30d = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
-    cutoff_60d = (datetime.now() - timedelta(days=60)).strftime('%Y-%m-%d')
-    active_from_sessions = set(sessions[sessions['hosted_date'] >= cutoff_30d]['hosted_by_id'].tolist())
-    active_from_presentations = set(presentations[presentations['createdat_date'] >= cutoff_30d]['user_id'].tolist())
-    active_members_count = len(active_from_sessions | active_from_presentations)
-    total_members_count = len(users)
+    # Extract time filter params
+    days, granularity = TIME_FILTERS[time_filter]
 
-    # Previous 30 days for comparison
-    prev_active_sessions = set(sessions[(sessions['hosted_date'] >= cutoff_60d) & (sessions['hosted_date'] < cutoff_30d)]['hosted_by_id'].tolist())
-    prev_active_presentations = set(presentations[(presentations['createdat_date'] >= cutoff_60d) & (presentations['createdat_date'] < cutoff_30d)]['user_id'].tolist())
-    prev_active_members_count = len(prev_active_sessions | prev_active_presentations)
+    # Active members (follows time filter)
+    total_members_count = len(users)
+    if days is not None:
+        cutoff_active = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
+        cutoff_prev = (datetime.now() - timedelta(days=days * 2)).strftime('%Y-%m-%d')
+        active_from_sessions = set(sessions[sessions['hosted_date'] >= cutoff_active]['hosted_by_id'].tolist())
+        active_from_presentations = set(presentations[presentations['createdat_date'] >= cutoff_active]['user_id'].tolist())
+        active_members_count = len(active_from_sessions | active_from_presentations)
+        prev_active_sessions = set(sessions[(sessions['hosted_date'] >= cutoff_prev) & (sessions['hosted_date'] < cutoff_active)]['hosted_by_id'].tolist())
+        prev_active_presentations = set(presentations[(presentations['createdat_date'] >= cutoff_prev) & (presentations['createdat_date'] < cutoff_active)]['user_id'].tolist())
+        prev_active_members_count = len(prev_active_sessions | prev_active_presentations)
+    else:
+        active_from_sessions = set(sessions['hosted_by_id'].tolist())
+        active_from_presentations = set(presentations['user_id'].tolist())
+        active_members_count = len(active_from_sessions | active_from_presentations)
+        prev_active_members_count = 0
 
     # Last active date per user
     last_hosted = pd.to_datetime(sessions.groupby('hosted_by_id')['hosted_date'].max()).rename('last_hosted')
@@ -102,7 +109,6 @@ def get_data(time_filter):
     last_active_df['last_active'] = last_active_df[['last_hosted', 'last_created']].max(axis=1)
 
     # Apply time filter
-    days, granularity = TIME_FILTERS[time_filter]
     sessions_unfiltered, participants_unfiltered, answers_unfiltered = sessions, participants, answers
     cutoff = None
     if days is not None:
@@ -210,6 +216,7 @@ def get_data(time_filter):
         'presentation_activity': presentation_activity,
         'engagement_performance': engagement_performance,
         'granularity': granularity,
+        'time_filter': time_filter,
     }
 
 
@@ -301,7 +308,7 @@ def render_dashboard():
         col1, col2, col3 = st.columns(3)
         with col1:
             with st.container(border=True, height=overview_card_height):
-                st.markdown('**Active members (last 30 days)**')
+                st.markdown(f"**Active members**")
                 st.markdown(f"<span style='font-size: 2rem; font-weight: 600;'>{data['active_members_count']}</span><span style='font-size: 1.2rem; color: #666;'>/{data['total_members_count']}</span>", unsafe_allow_html=True)
                 prev_active = data['prev_active_members_count']
                 if prev_active > 0:
