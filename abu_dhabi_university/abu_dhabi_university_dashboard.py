@@ -262,9 +262,18 @@ def render_dashboard():
         .st-key-overview-cards .stVerticalBlock {
             gap: 0.25rem !important;
         }
+        img[data-testid="stHeaderLogo"] {
+            height: 5rem !important;
+            max-height: none !important;
+        }
+        header[data-testid="stHeader"] {
+            height: 5rem !important;
+            max-height: none !important;
+        }
     </style>
     """, unsafe_allow_html=True)
-    st.logo('https://ahaslides.com/wp-content/uploads/2025/05/logo-full.png')
+    st.logo('abu_dhabi_university/logo.png')
+    st.set_page_config(page_icon="abu_dhabi_university/favicon.jpeg")
 
     # Time filter
     filter_col, _ = st.columns([1, 4])
