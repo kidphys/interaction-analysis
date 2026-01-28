@@ -1,7 +1,11 @@
+from datetime import timedelta
+
 import streamlit as st
 import pandas as pd
 import pydash as _
 import os
+
+CACHE_TTL = timedelta(days=1)
 
 # from utils import redshift_execute
 from redshift_api import execute
@@ -20,7 +24,7 @@ def fetch(query, filename, columns=None):
     return df
 
 
-@st.cache_data
+@st.cache_data(ttl=CACHE_TTL)
 def fetch_sessions_by_users(user_ids, filename='sessions_by_users', prefix=''):
     query = f'''
     select hosted_by_id, id, hosted_date from aha_report_v5.dim_sessions
@@ -29,7 +33,7 @@ def fetch_sessions_by_users(user_ids, filename='sessions_by_users', prefix=''):
     return fetch(query, f'{prefix}{filename}')
 
 
-@st.cache_data
+@st.cache_data(ttl=CACHE_TTL)
 def fetch_presentations_by_users(user_ids, filename='presentations_by_users', prefix=''):
     query = f'''
     select user_id, id, createdat_date from aha_report_v5.dim_presentations
@@ -38,7 +42,7 @@ def fetch_presentations_by_users(user_ids, filename='presentations_by_users', pr
     return fetch(query, f'{prefix}{filename}')
 
 
-@st.cache_data
+@st.cache_data(ttl=CACHE_TTL)
 def fetch_users(user_ids, filename='users', prefix=''):
     query = f'''
     select id, email, first_name, last_name from aha_report_v5.dim_users
@@ -47,7 +51,7 @@ def fetch_users(user_ids, filename='users', prefix=''):
     return fetch(query, f'{prefix}{filename}')
 
 
-@st.cache_data
+@st.cache_data(ttl=CACHE_TTL)
 def fetch_participants_by_users(user_ids, filename='participants', prefix=''):
     query = f'''
     select participant_id, createdat_date, user_id, presentation_id from aha_report_v5.dim_participants
@@ -56,7 +60,7 @@ def fetch_participants_by_users(user_ids, filename='participants', prefix=''):
     return fetch(query, f'{prefix}{filename}')
 
 
-@st.cache_data
+@st.cache_data(ttl=CACHE_TTL)
 def fetch_answers_by_users(user_ids, filename='answers', prefix=''):
     query = f'''
     select createdat_date, user_id, presentation_id, participant_id from aha_report_v5.fact_answers2
@@ -65,7 +69,7 @@ def fetch_answers_by_users(user_ids, filename='answers', prefix=''):
     return fetch(query, f'{prefix}{filename}')
 
 
-@st.cache_data
+@st.cache_data(ttl=CACHE_TTL)
 def fetch_participants_by_presentations(presentation_ids, filename='participants', prefix=''):
     query = f'''
     select participant_id, createdat_date, user_id, presentation_id from aha_report_v5.dim_participants
@@ -74,10 +78,19 @@ def fetch_participants_by_presentations(presentation_ids, filename='participants
     return fetch(query, f'{prefix}{filename}')
 
 
-@st.cache_data
+@st.cache_data(ttl=CACHE_TTL)
 def fetch_answers_by_presentations(presentation_ids, filename='answers', prefix=''):
     query = f'''
     select createdat_date, user_id, presentation_id, participant_id from aha_report_v5.fact_answers2
     where presentation_id in ({_.join(presentation_ids, ',')})
+    '''
+    return fetch(query, f'{prefix}{filename}')
+
+
+@st.cache_data(ttl=CACHE_TTL)
+def fetch_presentations_by_ids(presentation_ids, filename='presentations_by_ids', prefix=''):
+    query = f'''
+    select id, title, user_id from aha_report_v5.dim_presentations
+    where id in ({_.join(presentation_ids, ',')})
     '''
     return fetch(query, f'{prefix}{filename}')
