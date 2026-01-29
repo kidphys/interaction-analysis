@@ -16,6 +16,7 @@ from fetch_data import (
 from utils import parallelize
 
 ACCOUNT_ID = 27029
+HARD_CUTOFF = '2025-09-01'
 
 TIME_FILTERS = {
     'Last 7 days': (7, 'D'),
@@ -69,6 +70,10 @@ def get_data(time_filter):
     ])
     total_members_count = int(user_count_df.iloc[0]['cnt'])
 
+    # Apply hard cutoff
+    sessions = sessions[sessions['hosted_date'] >= HARD_CUTOFF]
+    presentations = presentations[presentations['createdat_date'] >= HARD_CUTOFF]
+
     # Derive active user IDs from sessions + presentations, then fetch user info
     active_user_ids = tuple(set(sessions['hosted_by_id'].tolist()) | set(presentations['user_id'].tolist()))
     if not active_user_ids:
@@ -82,6 +87,10 @@ def get_data(time_filter):
         (fetch_answers_by_presentations, (all_session_ids,), {'prefix': 'uninorte_'}),
         (fetch_presentations_by_ids, (all_session_ids,), {'prefix': 'uninorte_'}),
     ])
+
+    # Apply hard cutoff to participants and answers
+    participants = participants[participants['createdat_date'] >= HARD_CUTOFF]
+    answers = answers[answers['createdat_date'] >= HARD_CUTOFF]
 
     # Add hosted_by_id to participants and answers via sessions
     session_user_map = sessions.set_index('id')['hosted_by_id']
