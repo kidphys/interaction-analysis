@@ -1,6 +1,4 @@
-redshift-connector>=2.1.11
-sqlalchemy-redshift>=0.8.14
-sqlalchemy>=1.4.54
+setuptools>=65
 pydash>=8.0.6
 dotenv==0.9.9
 langchain==0.3.27
@@ -17,4 +15,6 @@ streamlit-aggrid==1.0.5
 plotly==6.5.0
 langchain-groq==0.3.8
 langchain-openai==0.3.35
-setuptools>=65
+redshift-connector>=2.1.11
+sqlalchemy-redshift>=0.8.14
+sqlalchemy>=1.4.54
