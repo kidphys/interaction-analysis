@@ -1,5 +1,5 @@
-redshift-connector==2.1.11
-sqlalchemy-redshift==0.8.14
+redshift-connector>=2.1.11
+sqlalchemy-redshift>=0.8.14
 pydash>=8.0.6
 dotenv==0.9.9
 langchain==0.3.27
