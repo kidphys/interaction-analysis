@@ -46,4 +46,5 @@ chartSequentialColors = [
 backgroundColor = "#F9F5FF"
 
 [server]
+headless = true
 maxUploadSize = 10000

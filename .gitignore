@@ -2,3 +2,4 @@
 **/*.csv
 **/*.duckdb
 **/*.json
+__pycache__
