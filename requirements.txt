@@ -15,6 +15,7 @@ streamlit-aggrid==1.0.5
 plotly==6.5.0
 langchain-groq==0.3.8
 langchain-openai==0.3.35
+psycopg2-binary>=2.9.0
 redshift-connector>=2.1.11
 sqlalchemy-redshift>=0.8.14
 sqlalchemy>=1.4.54

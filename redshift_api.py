@@ -21,7 +21,8 @@ REDSHIFT_HOST = os.getenv("REDSHIFT_HOST")
 def _create_engine():
     # build the sqlalchemy URL
     url = URL.create(
-        drivername='redshift+redshift_connector', # indicate redshift_connector driver and dialect will be used
+        drivername="postgresql+psycopg2",
+        # drivername='redshift+redshift_connector', # indicate redshift_connector driver and dialect will be used
         # drivername="redshift+psycopg2",
         host=REDSHIFT_HOST, # Amazon Redshift host
         port=5439, # Amazon Redshift port
