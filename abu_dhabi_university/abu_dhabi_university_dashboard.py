@@ -1,4 +1,3 @@
-import time
 from datetime import datetime, timedelta
 
 import altair as alt
@@ -24,10 +23,13 @@ TIME_FILTERS = {
 }
 
 
+DATE_RANGE_FREQ = {'D': 'D', 'W': 'W', 'M': 'MS'}
+
+
 def generate_period_range(days, granularity, earliest_date=None):
     end_date = datetime.now()
     start_date = (earliest_date or end_date - timedelta(days=365)) if days is None else end_date - timedelta(days=days)
-    date_range = pd.date_range(start=start_date, end=end_date, freq=granularity)
+    date_range = pd.date_range(start=start_date, end=end_date, freq=DATE_RANGE_FREQ[granularity])
     return pd.PeriodIndex(date_range, freq=granularity).unique().sort_values()
 
 
@@ -256,7 +258,7 @@ def render_events_table(events, title):
 
 
 def render_dashboard():
-    st.set_page_config(layout="wide")
+    st.set_page_config(layout="wide", page_icon="abu_dhabi_university/favicon.jpg")
     st.title('Abu Dhabi University Analytics')
     st.markdown("""
     <style>
@@ -280,7 +282,6 @@ def render_dashboard():
     </style>
     """, unsafe_allow_html=True)
     st.logo('abu_dhabi_university/logo.png')
-    st.set_page_config(page_icon="abu_dhabi_university/favicon.jpg")
 
     # Time filter
     filter_col, _ = st.columns([1, 4])
