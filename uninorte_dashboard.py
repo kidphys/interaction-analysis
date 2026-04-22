@@ -18,12 +18,18 @@ from utils import parallelize
 ACCOUNT_ID = 27029
 HARD_CUTOFF = '2025-09-01'
 
+# pandas >= 2.2 renamed month-end offset from 'M' to 'ME' for DateOffset/date_range,
+# but pd.PeriodIndex still uses the old 'M' alias across all versions.
+_PD_NEW = tuple(int(x) for x in pd.__version__.split('.')[:2]) >= (2, 2)
+_MONTH_FREQ = 'ME' if _PD_NEW else 'M'
+_PERIOD_FREQ_MAP = {'ME': 'M'}  # offset alias -> period alias
+
 TIME_FILTERS = {
     'Last 7 days': (7, 'D'),
     'Last 30 days': (30, 'W'),
     'Last 3 months': (90, 'W'),
-    'Last 6 months': (180, 'M'),
-    'All time': (None, 'M'),
+    'Last 6 months': (180, _MONTH_FREQ),
+    'All time': (None, _MONTH_FREQ),
 }
 
 
@@ -31,7 +37,8 @@ def generate_period_range(days, granularity, earliest_date=None):
     end_date = datetime.now()
     start_date = (earliest_date or end_date - timedelta(days=365)) if days is None else end_date - timedelta(days=days)
     date_range = pd.date_range(start=start_date, end=end_date, freq=granularity)
-    return pd.PeriodIndex(date_range, freq=granularity).unique().sort_values()
+    period_freq = _PERIOD_FREQ_MAP.get(granularity, granularity)
+    return pd.PeriodIndex(date_range, freq=period_freq).unique().sort_values()
 
 
 def build_events_table(participants, answers, presentation_names, sessions, users):
