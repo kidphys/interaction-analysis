@@ -106,6 +106,7 @@ def get_data(time_filter):
 
     # Extract time filter params
     days, granularity = TIME_FILTERS[time_filter]
+    period_granularity = _PERIOD_FREQ_MAP.get(granularity, granularity)
 
     # Active members (follows time filter)
     if days is not None:
@@ -217,13 +218,13 @@ def get_data(time_filter):
     earliest_date = all_dates.min() if len(all_dates) > 0 else None
     all_periods = generate_period_range(days, granularity, earliest_date)
 
-    presentations_ts = presentations.assign(period=pd.to_datetime(presentations['createdat_date']).dt.to_period(granularity)).groupby('period').size().rename('Created presentations')
-    sessions_ts = sessions.assign(period=pd.to_datetime(sessions['hosted_date']).dt.to_period(granularity)).groupby('period').size().rename('Hosted events')
+    presentations_ts = presentations.assign(period=pd.to_datetime(presentations['createdat_date']).dt.to_period(period_granularity)).groupby('period').size().rename('Created presentations')
+    sessions_ts = sessions.assign(period=pd.to_datetime(sessions['hosted_date']).dt.to_period(period_granularity)).groupby('period').size().rename('Hosted events')
     presentation_activity = pd.concat([presentations_ts, sessions_ts], axis=1).reindex(all_periods).fillna(0).astype(int)
     presentation_activity.index.name = 'period'
 
-    participants_ts = participants.assign(period=pd.to_datetime(participants['createdat_date']).dt.to_period(granularity)).groupby('period').size().rename('Participants')
-    answers_ts = answers.assign(period=pd.to_datetime(answers['createdat_date']).dt.to_period(granularity)).groupby('period').size().rename('Responses')
+    participants_ts = participants.assign(period=pd.to_datetime(participants['createdat_date']).dt.to_period(period_granularity)).groupby('period').size().rename('Participants')
+    answers_ts = answers.assign(period=pd.to_datetime(answers['createdat_date']).dt.to_period(period_granularity)).groupby('period').size().rename('Responses')
     engagement_performance = pd.concat([answers_ts, participants_ts], axis=1).reindex(all_periods).fillna(0).astype(int)
     engagement_performance.index.name = 'period'
 
@@ -239,7 +240,7 @@ def get_data(time_filter):
         'most_engaging_events': most_engaging_events,
         'presentation_activity': presentation_activity,
         'engagement_performance': engagement_performance,
-        'granularity': granularity,
+        'granularity': period_granularity,
         'time_filter': time_filter,
     }
 
